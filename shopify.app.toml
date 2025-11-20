@@ -2,12 +2,11 @@
 
 client_id = "60b3bc94dce92e75df9de4ba630cf091"
 name = "test store"
-application_url = "https://packs-artificial-banners-ware.trycloudflare.com"
+application_url = "https://test-store1.onrender.com/"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-include_config_on_deploy = true
 
 [webhooks]
 api_version = "2026-01"
@@ -27,4 +26,4 @@ optional_scopes = [ ]
 use_legacy_install_flow = false
 
 [auth]
-redirect_urls = [ "https://packs-artificial-banners-ware.trycloudflare.com/api/auth" ]
+redirect_urls = [ "https://test-store1.onrender.com/api/auth" ]
