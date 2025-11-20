@@ -26,4 +26,4 @@ optional_scopes = [ ]
 use_legacy_install_flow = false
 
 [auth]
-redirect_urls = [ "https://test-store1.onrender.com/api/auth" ]
+redirect_urls = [ "https://test-store1.onrender.com/api/auth/callback" ]
