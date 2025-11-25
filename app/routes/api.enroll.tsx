@@ -147,7 +147,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       photo_urls,
       photo_hashes,
       shipping_address_gps,
-      ...(customer_phone_last4 && { customer_phone_last4 }),
+      customer_phone_last4: customer_phone_last4 || "", // Always include, use empty string if not available
     };
 
     let nfsResponse: { proof_id: string; enrollment_status: string; key_id: string } | null = null;
