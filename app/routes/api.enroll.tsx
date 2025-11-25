@@ -5,7 +5,7 @@ import { INK_NAMESPACE } from "../utils/metafields.server";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-Requested-With, Origin",
 };
 
 // Handle OPTIONS preflight
