@@ -141,3 +141,71 @@ export async function registerUploadedFile(
     status: file.fileStatus,
   };
 }
+
+/**
+ * Query a file by ID to get its current details
+ */
+export async function getFileById(admin: AdminClient, fileId: string) {
+  const response = await admin.graphql(
+    `#graphql
+    query getFile($id: ID!) {
+      node(id: $id) {
+        ... on MediaImage {
+          id
+          image {
+            url
+          }
+          fileStatus
+        }
+        ... on GenericFile {
+          id
+          url
+          fileStatus
+        }
+      }
+    }`,
+    {
+      variables: { id: fileId },
+    }
+  );
+
+  const data = await response.json();
+  const node = data.data?.node;
+  
+  if (!node) {
+    return null;
+  }
+
+  return {
+    id: node.id,
+    url: node.url || node.image?.url || null,
+    status: node.fileStatus,
+  };
+}
+
+/**
+ * Poll for file URL to be ready (Shopify processes images asynchronously)
+ */
+export async function pollForFileUrl(
+  admin: AdminClient, 
+  fileId: string, 
+  maxAttempts = 10, 
+  delayMs = 500
+): Promise<string> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`🔄 Polling for file URL (attempt ${attempt}/${maxAttempts})...`);
+    
+    const file = await getFileById(admin, fileId);
+    
+    if (file?.url) {
+      console.log(`✅ File URL ready: ${file.url}`);
+      return file.url;
+    }
+
+    if (attempt < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw new Error(`File URL not available after ${maxAttempts} attempts`);
+}

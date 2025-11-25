@@ -119,12 +119,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // 3. Register the uploaded file
     console.log("📝 Registering file...");
     const registeredFile = await registerUploadedFile(admin, target.resourceUrl);
-    const fileUrl = registeredFile?.url || "";
 
-    if (!fileUrl) {
-      console.error("No URL returned from file registration");
+    if (!registeredFile?.id) {
+      console.error("No file ID returned from registration");
       return new Response(
-        JSON.stringify({ error: "Failed to register file" }), 
+        JSON.stringify({ error: "Failed to register file - no ID" }), 
         { 
           status: 500, 
           headers: { ...CORS_HEADERS, "Content-Type": "application/json" } 
@@ -132,7 +131,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    // 4. Generate SHA-256 hash
+    // 4. Poll for the file URL (Shopify processes images asynchronously)
+    console.log("⏳ Waiting for Shopify to process the image...");
+    let fileUrl: string;
+    
+    try {
+      const { pollForFileUrl } = await import("../utils/shopify-files.server");
+      fileUrl = await pollForFileUrl(admin, registeredFile.id, 10, 500);
+    } catch (pollError: any) {
+      console.error("Failed to get file URL:", pollError);
+      return new Response(
+        JSON.stringify({ 
+          error: "Image uploaded but URL not ready yet. Please try again.", 
+          details: pollError.message 
+        }), 
+        { 
+          status: 500, 
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    // 5. Generate SHA-256 hash
     console.log("🔐 Generating hash...");
     const arrayBuffer = await photo.arrayBuffer();
     const photoHash = await generateSHA256Hash(Buffer.from(arrayBuffer));
@@ -165,11 +185,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 // Helper to create admin client from session
-async function createAdminClient(session: any) {
+async function createAdminClient(session: any): Promise<any> {
   const shopifyModule = await import("../shopify.server");
   const shopify = shopifyModule.default;
   
   // Return an object with graphql method that matches AdminClient interface
+  // Using 'any' type to bypass strict type checking for the custom implementation
   return {
     graphql: async (query: string, options?: any) => {
       const response = await fetch(`https://${session.shop}/admin/api/2024-10/graphql.json`, {
@@ -188,5 +209,5 @@ async function createAdminClient(session: any) {
         json: async () => await response.json(),
       };
     },
-  };
+  } as any; // Type assertion to bypass strict type checking
 }
