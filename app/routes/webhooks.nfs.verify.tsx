@@ -60,11 +60,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
 
-    // Use shopify API to create GraphQL client with the session
-    const shopifyModule = await import("../shopify.server");
-    const shopify = shopifyModule.default;
-    // @ts-ignore - shopify object has api property
-    const client = new shopify.api.clients.Graphql({ session });
+    // Create admin client with graphql method
+    const client = {
+      request: async (query: string, options?: any) => {
+        const response = await fetch(`https://${session.shop}/admin/api/2024-10/graphql.json`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": session.accessToken,
+          },
+          body: JSON.stringify({
+            query,
+            variables: options?.variables || {},
+          }),
+        });
+        
+        return await response.json();
+      },
+    };
 
     // 5. Update Metafields
     // Extract numeric ID from order_id (e.g., "ORDER-12345" → "12345")

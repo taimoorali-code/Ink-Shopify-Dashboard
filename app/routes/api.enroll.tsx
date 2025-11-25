@@ -63,10 +63,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const nfsResponse = await NFSService.enroll(enrollPayload);
 
     // 2. Update Shopify Metafields with Proof ID
-    const shopifyModule = await import("../shopify.server");
-    const shopify = shopifyModule.default;
-    // @ts-ignore
-    const admin = new shopify.api.clients.Graphql({ session });
+    // Create admin client helper
+    const admin = {
+      graphql: async (query: string, options?: any) => {
+        const response = await fetch(`https://${session.shop}/admin/api/2024-10/graphql.json`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": session.accessToken,
+          },
+          body: JSON.stringify({
+            query,
+            variables: options?.variables || {},
+          }),
+        });
+        
+        return {
+          json: async () => await response.json(),
+        };
+      },
+    };
     
     const numericOrderId = order_id.replace(/\D/g, '');
     const orderGid = `gid://shopify/Order/${numericOrderId}`;
@@ -103,7 +119,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     `;
 
-    await admin.request(mutation, { variables: { metafields } });
+    await admin.graphql(mutation, { variables: { metafields } });
     await prisma.$disconnect();
 
     return new Response(
