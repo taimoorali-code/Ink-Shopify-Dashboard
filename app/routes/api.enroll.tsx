@@ -160,6 +160,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     try {
       nfsResponse = await NFSService.enroll(enrollPayload);
       console.log(`✅ NFS enrollment successful: ${nfsResponse.proof_id}`);
+
+      // Update local Proof record with NFS response
+      await prisma.proof.update({
+        where: { proof_id: localProofId },
+        data: {
+          nfs_proof_id: nfsResponse.proof_id,
+          enrollment_status: nfsResponse.enrollment_status,
+          key_id: nfsResponse.key_id,
+        },
+      });
+      console.log("✅ Local database updated with NFS response");
+
     } catch (error: any) {
       nfsError = error.message || "NFS enrollment failed";
       console.error("⚠️ NFS enrollment failed, but data saved locally:", nfsError);

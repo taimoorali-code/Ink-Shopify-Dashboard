@@ -46,13 +46,15 @@ model Proof {
   phone_verified       Boolean?  @default(false)
   signature            String?
   key_id               String?   @default("key_001")
+  nfs_proof_id         String?
+  enrollment_status    String?
   created_at           DateTime  @default(now())
   updated_at           DateTime  @updatedAt
 }
 
-model WarehouseUser {
-  id       String @id @default(cuid())
-  username String @unique
-  password String // Store hashed password
-  role     String // "warehouse" or "delivery"
-}
+// model WarehouseUser {
+//   id       String @id @default(cuid())
+//   username String @unique
+//   password String // Store hashed password
+//   role     String // "warehouse" or "delivery"
+// }
