@@ -37,7 +37,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const prisma = new PrismaClient();
 
     // 1. Fetch local proofs
+    console.log("🔍 Dashboard Loader: Fetching proofs...");
     const proofs = await prisma.proof.findMany();
+    console.log(`✅ Dashboard Loader: Found ${proofs.length} proofs.`);
+    if (proofs.length > 0) {
+        console.log("🔍 Sample Proof IDs:", proofs.slice(0, 3).map(p => p.order_id).join(", "));
+    }
     const proofMap = new Map(proofs.map(p => [p.order_id, p]));
 
     // 2. GraphQL query to fetch orders
