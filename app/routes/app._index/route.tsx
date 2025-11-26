@@ -4,10 +4,6 @@ import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../../shopify.server";
 
 // Define types for our data
-interface OrderMetafields {
-    [key: string]: string;
-}
-
 interface Order {
     id: string;
     name: string;
@@ -21,6 +17,7 @@ interface Order {
     verificationStatus: string;
     nfcUid: string;
     hasProof: boolean;
+    nfsProofId: string;
 }
 
 interface LoaderData {
@@ -33,11 +30,17 @@ interface StatusBadge {
     text: string;
 }
 
-// Loader: Fetch orders with metafields
+// Loader: Fetch orders and local proofs
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { admin } = await authenticate.admin(request);
+    const { PrismaClient } = await import("@prisma/client");
+    const prisma = new PrismaClient();
 
-    // GraphQL query to fetch orders with ink metafields
+    // 1. Fetch local proofs
+    const proofs = await prisma.proof.findMany();
+    const proofMap = new Map(proofs.map(p => [p.order_id, p]));
+
+    // 2. GraphQL query to fetch orders
     const query = `
     query GetOrders {
       orders(first: 50, reverse: true) {
@@ -59,14 +62,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               lastName
               email
             }
-            metafields(namespace: "ink", first: 10) {
-              edges {
-                node {
-                  key
-                  value
-                }
-              }
-            }
           }
         }
       }
@@ -77,18 +72,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const response = await admin.graphql(query);
         const data = await response.json();
 
-        // Transform orders data for easier use
+        // 3. Merge Shopify data with Local Proof data
         const orders: Order[] = data.data?.orders?.edges?.map((edge: any) => {
             const order = edge.node;
-
-            // Extract metafields into a simple object
-            const metafields: OrderMetafields = {};
-            order.metafields.edges.forEach((metaEdge: any) => {
-                metafields[metaEdge.node.key] = metaEdge.node.value;
-            });
+            const numericId = order.id.replace("gid://shopify/Order/", "");
+            const proof = proofMap.get(numericId);
 
             return {
-                id: order.id.replace("gid://shopify/Order/", ""),
+                id: numericId,
                 name: order.name,
                 createdAt: order.createdAt,
                 financialStatus: order.displayFinancialStatus,
@@ -99,31 +90,37 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     ? `${order.customer.firstName} ${order.customer.lastName}`
                     : "Guest",
                 customerEmail: order.customer?.email || "",
-                verificationStatus: metafields.verification_status || "Not Set",
-                nfcUid: metafields.nfc_uid || "",
-                hasProof: !!metafields.photos_hashes,
+                // Prioritize local DB status, fallback to "Pending"
+                verificationStatus: proof?.enrollment_status || (proof ? "Enrolled (Local)" : "Pending"),
+                nfcUid: proof?.nfc_uid || "",
+                hasProof: !!proof,
+                nfsProofId: proof?.nfs_proof_id || "",
             };
         }) || [];
 
+        await prisma.$disconnect();
         return { orders };
     } catch (error) {
         console.error("Error fetching orders:", error);
+        await prisma.$disconnect();
         return { orders: [] };
     }
 };
 
 // Helper function to get badge tone based on status
 function getStatusBadge(status: string): StatusBadge {
-    const statusLower = status.toLowerCase();
+    const statusLower = status ? status.toLowerCase() : "pending";
 
-    if (statusLower === "verified") {
+    if (statusLower === "verified" || statusLower === "enrolled") {
         return { tone: "success", icon: "✅", text: "Verified" };
     } else if (statusLower === "pending") {
         return { tone: "attention", icon: "⏳", text: "Pending" };
     } else if (statusLower === "flagged") {
         return { tone: "critical", icon: "🚩", text: "Flagged" };
+    } else if (statusLower === "enrolled_local_only") {
+        return { tone: "info", icon: "💾", text: "Local Only" };
     } else {
-        return { tone: "info", icon: "ℹ️", text: "Not Set" };
+        return { tone: "info", icon: "ℹ️", text: status };
     }
 }
 
@@ -174,7 +171,7 @@ export default function DashboardHome() {
                         border: "1px solid #e1e3e5"
                     }}>
                         <div style={{ fontSize: "24px", fontWeight: "bold", color: "#008060" }}>
-                            {orders.filter((o: Order) => o.verificationStatus.toLowerCase() === "verified").length}
+                            {orders.filter((o: Order) => ["verified", "enrolled"].includes(o.verificationStatus.toLowerCase())).length}
                         </div>
                         <div style={{ color: "#6d7175", fontSize: "14px" }}>Verified</div>
                     </div>
@@ -189,18 +186,6 @@ export default function DashboardHome() {
                             {orders.filter((o: Order) => o.verificationStatus.toLowerCase() === "pending").length}
                         </div>
                         <div style={{ color: "#6d7175", fontSize: "14px" }}>Pending</div>
-                    </div>
-
-                    <div style={{
-                        padding: "16px",
-                        background: "#f6f6f7",
-                        borderRadius: "8px",
-                        border: "1px solid #e1e3e5"
-                    }}>
-                        <div style={{ fontSize: "24px", fontWeight: "bold", color: "#d72c0d" }}>
-                            {orders.filter((o: Order) => o.verificationStatus.toLowerCase() === "flagged").length}
-                        </div>
-                        <div style={{ color: "#6d7175", fontSize: "14px" }}>Flagged</div>
                     </div>
                 </div>
 
@@ -301,7 +286,12 @@ export default function DashboardHome() {
                                                 )}
                                                 {order.nfcUid && (
                                                     <div style={{ fontSize: "11px", color: "#0066cc", marginTop: "2px" }}>
-                                                        🏷️ NFC assigned
+                                                        🏷️ UID: {order.nfcUid}
+                                                    </div>
+                                                )}
+                                                {order.nfsProofId && (
+                                                    <div style={{ fontSize: "10px", color: "#666", marginTop: "2px" }}>
+                                                        🆔 NFS: {order.nfsProofId.slice(0, 10)}...
                                                     </div>
                                                 )}
                                             </td>
