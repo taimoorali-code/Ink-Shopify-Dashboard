@@ -1,6 +1,7 @@
 import { type ActionFunctionArgs } from "react-router";
 import { NFSService } from "../services/nfs.server";
 import { INK_NAMESPACE } from "../utils/metafields.server";
+import { serialNumberToToken } from "../utils/nfc-conversion.server";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -29,25 +30,44 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!session) {
       await prisma.$disconnect();
       return new Response(
-        JSON.stringify({ error: "No session available" }), 
-        { 
-          status: 500, 
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" } 
+        JSON.stringify({ error: "No session available" }),
+        {
+          status: 500,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" }
         }
       );
     }
 
     // Parse JSON payload
     const payload = await request.json();
-    const { order_id, nfc_uid, nfc_token, photo_urls, photo_hashes, shipping_address_gps } = payload;
-    
-    if (!order_id || !nfc_uid || !nfc_token || !photo_urls || !photo_hashes) {
+    const { order_id, serial_number, photo_urls, photo_hashes, shipping_address_gps } = payload;
+
+    console.log(`📦 Enrollment request for order ${order_id}, serial: ${serial_number}`);
+
+    if (!order_id || !serial_number || !photo_urls || !photo_hashes) {
+      console.error("❌ Missing required fields");
       await prisma.$disconnect();
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }), 
-        { 
-          status: 400, 
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" } 
+        JSON.stringify({ error: "Missing required fields: order_id, serial_number, photo_urls, photo_hashes" }),
+        {
+          status: 400,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" }
+        }
+      );
+    }
+
+    // Convert serial number to UID and Token (deterministic)
+    const { uid, token } = serialNumberToToken(serial_number);
+    console.log(`✅ Converted serial to UID: ${uid}, Token: ${token}`);
+
+    // Now validate with converted values
+    if (!order_id || !uid || !token || !photo_urls || !photo_hashes) {
+      await prisma.$disconnect();
+      return new Response(
+        JSON.stringify({ error: "Missing required fields" }),
+        {
+          status: 400,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" }
         }
       );
     }
@@ -66,7 +86,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             variables: options?.variables || {},
           }),
         });
-        
+
         return {
           json: async () => await response.json(),
         };
@@ -76,11 +96,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // 1. Fetch customer phone from Shopify order
     console.log(`📞 Fetching customer phone for order ${order_id}...`);
     let customer_phone_last4: string | undefined;
-    
+
     try {
       const numericOrderId = order_id.replace(/\D/g, '');
       const orderGid = `gid://shopify/Order/${numericOrderId}`;
-      
+
       const orderQuery = `
         query getOrder($id: ID!) {
           order(id: $id) {
@@ -90,11 +110,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         }
       `;
-      
+
       const orderResponse = await admin.graphql(orderQuery, { variables: { id: orderGid } });
       const orderData = await orderResponse.json();
       const customerPhone = orderData.data?.order?.customer?.phone;
-      
+
       if (customerPhone) {
         // Extract last 4 digits (remove non-numeric characters)
         const phoneDigits = customerPhone.replace(/\D/g, '');
@@ -111,13 +131,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // 2. Save to local Proof table (backup)
     console.log("💾 Saving enrollment to database...");
     let localProofId: string;
-    
+
     try {
       const proofRecord = await prisma.proof.create({
         data: {
           order_id,
-          nfc_uid,
-          nfc_token,
+          nfc_uid: uid,
+          nfc_token: token,
           photo_urls: JSON.stringify(photo_urls),
           photo_hashes: JSON.stringify(photo_hashes),
           shipping_address_gps: JSON.stringify(shipping_address_gps),
@@ -131,10 +151,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       console.error("❌ Database save failed:", dbError);
       await prisma.$disconnect();
       return new Response(
-        JSON.stringify({ error: "Failed to save enrollment to database", details: dbError.message }), 
-        { 
-          status: 500, 
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" } 
+        JSON.stringify({ error: "Failed to save enrollment to database", details: dbError.message }),
+        {
+          status: 500,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" }
         }
       );
     }
@@ -142,8 +162,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // 3. Call NFS Backend to Enroll
     const enrollPayload = {
       order_id,
-      nfc_uid,
-      nfc_token,
+      nfc_uid: uid,
+      nfc_token: token,
       photo_urls,
       photo_hashes,
       shipping_address_gps,
@@ -183,7 +203,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     try {
       const numericOrderId = order_id.replace(/\D/g, '');
       const orderGid = `gid://shopify/Order/${numericOrderId}`;
-      
+
       const metafields = [
         {
           ownerId: orderGid,
@@ -204,7 +224,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           namespace: INK_NAMESPACE,
           key: "nfc_uid",
           type: "single_line_text_field",
-          value: nfc_uid,
+          value: uid,
         },
       ];
 
@@ -227,12 +247,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     // Return success with proof_id
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         proof_id: nfsResponse?.proof_id || localProofId,
         nfs_status: nfsResponse ? "success" : "failed_local_backup",
         ...(nfsError && { nfs_error: nfsError }),
-      }), 
+      }),
       {
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" }
       }
@@ -242,10 +262,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.error("❌ Enrollment Error:", error);
     await prisma.$disconnect();
     return new Response(
-      JSON.stringify({ error: error.message || "Enrollment failed" }), 
-      { 
-        status: 500, 
-        headers: { ...CORS_HEADERS, "Content-Type": "application/json" } 
+      JSON.stringify({ error: error.message || "Enrollment failed" }),
+      {
+        status: 500,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" }
       }
     );
   }
