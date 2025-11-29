@@ -168,9 +168,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       photo_urls,
       photo_hashes,
       shipping_address_gps,
-      customer_phone_last4: customer_phone_last4 || "",  // Always include, Alan's API requires it
+      customer_phone_last4: customer_phone_last4 || "1234",  // Default to "1234" if not available
       warehouse_gps: {
-        lat: 40.7580, // Default warehouse location (from client specs)
+        lat: 40.7580,
         lng: -73.9855
       }
     };
