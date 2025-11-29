@@ -160,19 +160,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // 3. Call NFS Backend to Enroll
-    const enrollPayload = {
+    const enrollPayload: any = {
       order_id,
       nfc_uid: uid,
       nfc_token: token,
       photo_urls,
       photo_hashes,
       shipping_address_gps,
-      customer_phone_last4: customer_phone_last4 || "", // Always include, use empty string if not available
       warehouse_gps: {
         lat: 40.7580, // Default warehouse location (from client specs)
         lng: -73.9855
       }
     };
+
+    // Only include customer_phone_last4 if it has a value
+    if (customer_phone_last4 && customer_phone_last4.trim() !== '') {
+      enrollPayload.customer_phone_last4 = customer_phone_last4;
+    }
 
     let nfsResponse: { proof_id: string; enrollment_status: string; key_id: string } | null = null;
     let nfsError: string | null = null;
