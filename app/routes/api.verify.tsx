@@ -16,16 +16,27 @@ export const loader = async () => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+    // CRITICAL: Log EVERY request that hits this endpoint
+    console.log("\n🚨 =================================================");
+    console.log("🚨 /api/verify ENDPOINT HIT");
+    console.log("🚨 Time:", new Date().toISOString());
+    console.log("🚨 Method:", request.method);
+    console.log("🚨 URL:", request.url);
+    console.log("🚨 =================================================\n");
+
     const { PrismaClient } = await import("@prisma/client");
     const prisma = new PrismaClient();
 
     try {
         const payload = await request.json();
+        console.log("📥 Raw payload received:", JSON.stringify(payload, null, 2));
+
         const { serial_number, delivery_gps, device_info, phone_last4 } = payload;
 
         console.log("📍 Verify request received:", { serial_number, delivery_gps, device_info, phone_last4 });
 
         if (!serial_number || !delivery_gps) {
+            console.error("❌ Validation failed: Missing serial_number or delivery_gps");
             await prisma.$disconnect();
             return new Response(
                 JSON.stringify({ error: "Missing required fields: serial_number and delivery_gps" }),
@@ -55,12 +66,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         console.log("✅ Proof found:", { proof_id: proof.proof_id, order_id: proof.order_id, token: proof.nfc_token });
 
         // Call Alan's server /verify endpoint with the token from database
+        // ALL fields MUST be present per Alan's API requirements
         const NFS_API_URL = process.env.NFS_API_URL || "https://us-central1-inink-c76d3.cloudfunctions.net/api";
         const alanPayload = {
-            nfc_token: proof.nfc_token,  // Use token from database
-            delivery_gps,
-            device_info,
-            phone_last4,
+            nfc_token: proof.nfc_token,  // Use token from database (required)
+            delivery_gps,  // Required
+            device_info: device_info || "Unknown",  // Default if not provided
+            phone_last4: phone_last4 || "1234",  // Default if not provided
         };
 
         console.log("🚀 Calling Alan's server /verify:", `${NFS_API_URL}/verify`);
