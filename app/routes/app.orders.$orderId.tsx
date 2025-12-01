@@ -65,6 +65,31 @@ const formatDate = (dateString: string) => {
     });
 };
 
+// Helper: Format GPS
+const formatGPS = (gpsString: string | null) => {
+    if (!gpsString) return null;
+    try {
+        // Handle both JSON format {"lat":...,"lng":...} and simple "lat,lng" string
+        let lat, lng;
+        if (gpsString.startsWith("{")) {
+            const parsed = JSON.parse(gpsString);
+            lat = parsed.lat;
+            lng = parsed.lng;
+        } else {
+            [lat, lng] = gpsString.split(",");
+        }
+
+        if (!lat || !lng) return { text: gpsString, url: null };
+
+        return {
+            text: `${parseFloat(lat).toFixed(4)}, ${parseFloat(lng).toFixed(4)}`,
+            url: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+        };
+    } catch (e) {
+        return { text: gpsString, url: null };
+    }
+};
+
 // Helper: Client-side Image Compression
 const compressImage = async (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
@@ -801,242 +826,122 @@ export default function OrderDetails() {
                                 </BlockStack>
                             </Card>
 
-                            {/* Verification Details Section - Split into Warehouse and Customer */}
+                            {/* Verification Details Section - Improved UI */}
                             <Card>
                                 <BlockStack gap="400">
                                     <Text variant="headingMd" as="h2">
                                         Verification Details
                                     </Text>
 
-                                    {/* Warehouse Section - Enrollment Data */}
+                                    {/* Warehouse Section */}
                                     <BlockStack gap="300">
                                         <Text variant="headingSm" as="h3">
                                             📦 Warehouse Enrollment
                                         </Text>
-                                        <Grid>
-                                            <Grid.Cell
-                                                columnSpan={{
-                                                    xs: 6,
-                                                    sm: 6,
-                                                    md: 3,
-                                                    lg: 3,
-                                                    xl: 3,
-                                                }}
-                                            >
-                                                <Card>
-                                                    <BlockStack gap="100">
-                                                        <Text
-                                                            variant="bodySm"
-                                                            as="span"
-                                                            tone="subdued"
-                                                        >
-                                                            Enrollment Status
-                                                        </Text>
-                                                        <Text
-                                                            variant="bodyMd"
-                                                            as="span"
-                                                            fontWeight="bold"
-                                                        >
-                                                            {order.metafields.verification_status ||
-                                                                "Not Enrolled"}
-                                                        </Text>
-                                                    </BlockStack>
-                                                </Card>
-                                            </Grid.Cell>
+                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+                                            <BlockStack gap="100">
+                                                <Text variant="bodySm" as="span" tone="subdued">Enrollment Status</Text>
+                                                <div>
+                                                    <Badge tone={order.metafields.verification_status === "Enrolled" ? "success" : "info"}>
+                                                        {order.metafields.verification_status || "Pending"}
+                                                    </Badge>
+                                                </div>
+                                            </BlockStack>
 
                                             {order.metafields.nfc_uid && (
-                                                <Grid.Cell
-                                                    columnSpan={{
-                                                        xs: 6,
-                                                        sm: 6,
-                                                        md: 3,
-                                                        lg: 3,
-                                                        xl: 3,
-                                                    }}
-                                                >
-                                                    <Card>
-                                                        <BlockStack gap="100">
-                                                            <Text
-                                                                variant="bodySm"
-                                                                as="span"
-                                                                tone="subdued"
-                                                            >
-                                                                NFC Tag UID
-                                                            </Text>
-                                                            <Text variant="bodyMd" as="span">
-                                                                <span style={{ fontFamily: "monospace" }}>
-                                                                    🏷️ {order.metafields.nfc_uid}
-                                                                </span>
-                                                            </Text>
-                                                        </BlockStack>
-                                                    </Card>
-                                                </Grid.Cell>
+                                                <BlockStack gap="100">
+                                                    <Text variant="bodySm" as="span" tone="subdued">NFC Tag UID</Text>
+                                                    <Text variant="bodyMd" as="span">
+                                                        <span style={{ fontFamily: "monospace", background: "#f1f2f3", padding: "2px 4px", borderRadius: "4px" }}>
+                                                            🏷️ {order.metafields.nfc_uid}
+                                                        </span>
+                                                    </Text>
+                                                </BlockStack>
                                             )}
 
                                             {order.metafields.proof_reference && (
-                                                <Grid.Cell
-                                                    columnSpan={{
-                                                        xs: 6,
-                                                        sm: 6,
-                                                        md: 3,
-                                                        lg: 3,
-                                                        xl: 3,
-                                                    }}
-                                                >
-                                                    <Card>
-                                                        <BlockStack gap="100">
-                                                            <Text
-                                                                variant="bodySm"
-                                                                as="span"
-                                                                tone="subdued"
-                                                            >
-                                                                Proof ID
-                                                            </Text>
-                                                            <Text variant="bodyMd" as="span">
-                                                                <span style={{ fontFamily: "monospace" }}>
-                                                                    🆔 {order.metafields.proof_reference}
-                                                                </span>
-                                                            </Text>
-                                                        </BlockStack>
-                                                    </Card>
-                                                </Grid.Cell>
+                                                <BlockStack gap="100">
+                                                    <Text variant="bodySm" as="span" tone="subdued">Proof ID</Text>
+                                                    <Text variant="bodyMd" as="span">
+                                                        <span style={{ fontFamily: "monospace", background: "#f1f2f3", padding: "2px 4px", borderRadius: "4px" }}>
+                                                            🆔 {order.metafields.proof_reference.substring(0, 12)}...
+                                                        </span>
+                                                    </Text>
+                                                </BlockStack>
                                             )}
 
                                             {order.metafields.delivery_gps && (
-                                                <Grid.Cell
-                                                    columnSpan={{
-                                                        xs: 6,
-                                                        sm: 6,
-                                                        md: 3,
-                                                        lg: 3,
-                                                        xl: 3,
-                                                    }}
-                                                >
-                                                    <Card>
-                                                        <BlockStack gap="100">
-                                                            <Text
-                                                                variant="bodySm"
-                                                                as="span"
-                                                                tone="subdued"
-                                                            >
-                                                                Warehouse Location
-                                                            </Text>
-                                                            <Text variant="bodyMd" as="span">
-                                                                📍 {order.metafields.delivery_gps}
-                                                            </Text>
-                                                        </BlockStack>
-                                                    </Card>
-                                                </Grid.Cell>
+                                                <BlockStack gap="100">
+                                                    <Text variant="bodySm" as="span" tone="subdued">Warehouse Location</Text>
+                                                    {(() => {
+                                                        const gps = formatGPS(order.metafields.delivery_gps);
+                                                        return gps?.url ? (
+                                                            <Button url={gps.url} external size="slim" variant="plain">
+                                                                📍 {gps.text}
+                                                            </Button>
+                                                        ) : (
+                                                            <Text variant="bodyMd" as="span">📍 {gps?.text || "N/A"}</Text>
+                                                        );
+                                                    })()}
+                                                </BlockStack>
                                             )}
-                                        </Grid>
+                                        </div>
                                     </BlockStack>
 
-                                    {/* Customer Section - Customer Verification Data (Only show if customer has scanned) */}
+                                    {/* Customer Section */}
                                     {order.localProof?.verification_status && (
-                                        <BlockStack gap="300">
+                                        <>
                                             <Divider />
-                                            <Text variant="headingSm" as="h3">
-                                                👤 Customer Verification
-                                            </Text>
-                                            <Grid>
-                                                <Grid.Cell
-                                                    columnSpan={{
-                                                        xs: 6,
-                                                        sm: 6,
-                                                        md: 4,
-                                                        lg: 4,
-                                                        xl: 4,
-                                                    }}
-                                                >
-                                                    <Card>
+                                            <BlockStack gap="300">
+                                                <InlineStack align="space-between">
+                                                    <Text variant="headingSm" as="h3">
+                                                        👤 Customer Verification
+                                                    </Text>
+                                                    {order.localProof.verify_url && (
+                                                        <Button url={order.localProof.verify_url} external size="slim">
+                                                            View on NFS Platform ↗
+                                                        </Button>
+                                                    )}
+                                                </InlineStack>
+
+                                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+                                                    <BlockStack gap="100">
+                                                        <Text variant="bodySm" as="span" tone="subdued">Status</Text>
+                                                        <div>
+                                                            <Badge
+                                                                tone={
+                                                                    order.localProof.verification_status === "verified"
+                                                                        ? "success"
+                                                                        : order.localProof.verification_status === "flagged"
+                                                                            ? "critical"
+                                                                            : "info"
+                                                                }
+                                                            >
+                                                                {order.localProof.verification_status.toUpperCase()}
+                                                            </Badge>
+                                                        </div>
+                                                    </BlockStack>
+
+                                                    {order.localProof.verification_updated_at && (
                                                         <BlockStack gap="100">
-                                                            <Text
-                                                                variant="bodySm"
-                                                                as="span"
-                                                                tone="subdued"
-                                                            >
-                                                                Verification Status
-                                                            </Text>
-                                                            <Text
-                                                                variant="bodyMd"
-                                                                as="span"
-                                                                fontWeight="bold"
-                                                            >
-                                                                <Badge
-                                                                    tone={
-                                                                        order.localProof.verification_status === "verified"
-                                                                            ? "success"
-                                                                            : order.localProof.verification_status === "flagged"
-                                                                                ? "critical"
-                                                                                : "info"
-                                                                    }
-                                                                >
-                                                                    {order.localProof.verification_status.toUpperCase()}
-                                                                </Badge>
+                                                            <Text variant="bodySm" as="span" tone="subdued">Last Verified</Text>
+                                                            <Text variant="bodyMd" as="span">
+                                                                🕐 {formatDate(order.localProof.verification_updated_at)}
                                                             </Text>
                                                         </BlockStack>
-                                                    </Card>
-                                                </Grid.Cell>
+                                                    )}
 
-                                                {order.localProof.verify_url && (
-                                                    <Grid.Cell
-                                                        columnSpan={{
-                                                            xs: 6,
-                                                            sm: 6,
-                                                            md: 4,
-                                                            lg: 4,
-                                                            xl: 4,
-                                                        }}
-                                                    >
-                                                        <Card>
-                                                            <BlockStack gap="100">
-                                                                <Text
-                                                                    variant="bodySm"
-                                                                    as="span"
-                                                                    tone="subdued"
-                                                                >
-                                                                    Verification Details
-                                                                </Text>
-                                                                <Button
-                                                                    url={order.localProof.verify_url}
-                                                                    external
-                                                                    size="slim"
-                                                                >
-                                                                    🔗 View on NFS Platform
-                                                                </Button>
-                                                            </BlockStack>
-                                                        </Card>
-                                                    </Grid.Cell>
-                                                )}
-
-                                                {order.localProof.verification_updated_at && (
-                                                    <Grid.Cell
-                                                        columnSpan={{
-                                                            xs: 6,
-                                                            sm: 6,
-                                                            md: 4,
-                                                            lg: 4,
-                                                            xl: 4,
-                                                        }}
-                                                    >
-                                                        <Card>
-                                                            <BlockStack gap="100">
-                                                                <Text
-                                                                    variant="bodySm"
-                                                                    as="span"
-                                                                    tone="subdued"
-                                                                >
-                                                                    Last Verified
-                                                                </Text>
-                                                                <Text variant="bodyMd" as="span">
-                                                                    🕐 {formatDate(order.localProof.verification_updated_at)}
-                                                                </Text>
-                                                            </BlockStack>
-                                                        </Card>
-                                                    </Grid.Cell>
-                                                )}
-                                            </Grid>
-                                        </BlockStack>
+                                                    {order.localProof.distance_meters != null && (
+                                                        <BlockStack gap="100">
+                                                            <Text variant="bodySm" as="span" tone="subdued">Distance from Warehouse</Text>
+                                                            <Text variant="bodyMd" as="span">
+                                                                📏 {Math.round(order.localProof.distance_meters)} meters
+                                                            </Text>
+                                                        </BlockStack>
+                                                    )}
+                                                </div>
+                                            </BlockStack>
+                                        </>
                                     )}
 
                                     {!order.metafields.verification_status && !order.localProof?.verification_status && (
