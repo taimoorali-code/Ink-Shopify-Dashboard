@@ -262,6 +262,47 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       } else {
         console.log("✅ Shopify metafields updated successfully");
       }
+
+      // --- SEND EMAIL NOTIFICATION ---
+      // Only send email when status is "verified"
+      if (status === "verified" && verify_url) {
+        console.log("📧 Sending verification email notification...");
+        
+        try {
+          // Fetch customer email from the order
+          const orderQuery = `#graphql
+            query GetOrderForEmail($id: ID!) {
+              order(id: $id) {
+                name
+                customer {
+                  email
+                  firstName
+                }
+              }
+            }
+          `;
+          
+          const orderData = await adminGraphql(orderQuery, { id: orderGid });
+          
+          if (orderData?.data?.order?.customer?.email) {
+            const { EmailService } = await import("../services/email.server");
+            
+            await EmailService.sendVerificationEmail({
+              to: orderData.data.order.customer.email,
+              customerName: orderData.data.order.customer.firstName || "Customer",
+              orderName: orderData.data.order.name,
+              proofUrl: verify_url,
+            });
+            
+            console.log(`✅ Verification email sent to ${orderData.data.order.customer.email}`);
+          } else {
+            console.warn("⚠️ Order found but no customer email available");
+          }
+        } catch (emailError: any) {
+          console.error("❌ Failed to send email:", emailError.message);
+          // Don't fail the webhook if email fails
+        }
+      }
     } catch (shopifyError: any) {
       console.error("❌ Shopify update failed:", shopifyError.message);
       // Don't fail the webhook - we got the data

@@ -54,74 +54,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         console.log("✅ Alan's server response:", alanData);
 
-        // ---------------------------------------------------------
-        // SEND EMAIL NOTIFICATION (Fire & Forget)
-        // ---------------------------------------------------------
-        (async () => {
-            try {
-                console.log("📧 Starting email notification process...");
-                const { PrismaClient } = await import("@prisma/client");
-                const prisma = new PrismaClient();
-                
-                const session = await prisma.session.findFirst({ where: { isOnline: false } });
-                
-                if (session) {
-                    // Find order by Proof Reference (returned by Alan)
-                    // This is safer than searching by 'nfc_uid' which has colons
-                    const proofId = alanData.proof_id;
-
-                    console.log(`🔍 Searching for order with proof_reference: ${proofId}`);
-                    
-                    const query = `#graphql
-                        query FindOrderByMetafield {
-                            orders(first: 1, query: "metafield:${INK_NAMESPACE}.proof_reference:'${proofId}'") {
-                                edges {
-                                    node {
-                                        id
-                                        name
-                                        customer {
-                                            email
-                                            firstName
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    `;
-                    
-                    const response = await fetch(`https://${session.shop}/admin/api/2024-10/graphql.json`, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-Shopify-Access-Token": session.accessToken,
-                        },
-                        body: JSON.stringify({ query }),
-                    });
-                    
-                    const result = await response.json();
-                    const orderNode = result.data?.orders?.edges?.[0]?.node;
-
-                    if (orderNode) {
-                        console.log(`✅ Found order for email: ${orderNode.name} (${orderNode.customer?.email || "No Email"})`);
-                        
-                        if (orderNode.customer?.email) {
-                            await EmailService.sendVerificationEmail({
-                                to: orderNode.customer.email,
-                                customerName: orderNode.customer.firstName || "Customer",
-                                orderName: orderNode.name,
-                                proofUrl: alanData.verify_url || `https://in.ink/verify/${alanData.proof_id}`,
-                            });
-                        }
-                    } else {
-                        console.warn(`⚠️ Could not find order linked to proof ${proofId}. Search returned no results.`);
-                    }
-                }
-                
-                await prisma.$disconnect();
-            } catch (emailError) {
-                console.error("❌ Failed to send verification email:", emailError);
-            }
-        })();
+        // NOTE: Email notification is now handled by the webhook (/ink/update)
+        // which Alan calls after verification. The webhook has the order_id
+        // making it more reliable than searching by metafields here.
 
         // Return Alan's response directly to frontend
         return new Response(JSON.stringify(alanData), {
