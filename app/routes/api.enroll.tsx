@@ -86,9 +86,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.log(`📞 Fetching customer phone for order ${order_id}...`);
     let customer_phone_last4: string | undefined;
 
+    let validOrderGid: string = "";
+
     try {
       const numericOrderId = order_id.replace(/\D/g, '');
-      const orderGid = `gid://shopify/Order/${numericOrderId}`;
+      // Initial guess for GID - might be wrong if order_id is just a number
+      const potentialGid = `gid://shopify/Order/${numericOrderId}`;
+      // Note: We used to call this 'orderGid' but now we distinguish potential vs valid
+      const orderGid = potentialGid; 
 
       const orderQuery = `
         query getOrder($id: ID!) {
@@ -100,20 +105,76 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       `;
 
-      const orderResponse = await admin.graphql(orderQuery, { variables: { id: orderGid } });
-      const orderData = await orderResponse.json();
+      let orderData;
+      let orderResponse;
       
+      // Try fetching by ID first (assuming it might be a valid GID)
+      orderResponse = await admin.graphql(orderQuery, { variables: { id: orderGid } });
+      let responseJson = await orderResponse.json();
+
+      // If ID lookup failed (order is null), try finding by Name (Order Number)
+      if (!responseJson?.data?.order) {
+        console.warn(`⚠️ Direct ID lookup failed for ${orderGid}. Trying lookup by name (Order Number)...`);
+        
+        // PWA sends "1014", Shopify stores as "#1014" usually. Search "name:1014" works generally.
+        const nameQuery = `#graphql
+          query FindOrderByName($query: String!) {
+            orders(first: 1, query: $query) {
+              edges {
+                node {
+                  id
+                  name
+                  customer {
+                    phone
+                  }
+                }
+              }
+            }
+          }
+        `;
+        
+        // Try exact match with and without hash just in case
+        const searchResponse = await admin.graphql(nameQuery, { variables: { query: `name:${numericOrderId}` } });
+        const searchJson = await searchResponse.json();
+        
+        if (searchJson?.data?.orders?.edges?.length > 0) {
+           const foundOrder = searchJson.data.orders.edges[0].node;
+           console.log(`✅ Found order by name: ${foundOrder.name} (ID: ${foundOrder.id})`);
+           // Update orderGid to the REAL valid GID
+           // CRITICAL: We must update orderGid because it's used later for metafields
+           // We can't update 'const orderGid', so we need to change how we use it.
+           // Refactoring to use a mutable variable slightly or just overwrite orderData structure.
+           orderData = { data: { order: foundOrder } };
+        } else {
+           // Double check with # prefix?
+           const searchResponse2 = await admin.graphql(nameQuery, { variables: { query: `name:#${numericOrderId}` } });
+           const searchJson2 = await searchResponse2.json();
+           
+           if (searchJson2?.data?.orders?.edges?.length > 0) {
+              const foundOrder = searchJson2.data.orders.edges[0].node;
+              console.log(`✅ Found order by name (#): ${foundOrder.name} (ID: ${foundOrder.id})`);
+              orderData = { data: { order: foundOrder } };
+           }
+        }
+      } else {
+        orderData = responseJson;
+      }
+
       if (!orderData?.data?.order) {
-        console.error(`❌ Order not found in Shopify: ${orderGid}`);
+        console.error(`❌ Order not found in Shopify: ${orderGid} or by name #${numericOrderId}`);
         await prisma.$disconnect();
         return new Response(
-          JSON.stringify({ error: `Order not found: ${order_id}. Please ensure you are using the internal Order ID, not the visible Order Number.` }),
+          JSON.stringify({ error: `Order not found: ${order_id}. Please ensure the order exists in Shopify.` }),
           {
             status: 404,
             headers: { ...CORS_HEADERS, "Content-Type": "application/json" }
           }
         );
       }
+      
+      // Update global ID variable for later use (Metafields)
+      // Since orderGid is const, we'll extract the valid ID from data
+      validOrderGid = orderData.data.order.id;
 
       const customerPhone = orderData.data?.order?.customer?.phone;
 
@@ -176,28 +237,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     // 3. Update Shopify Metafields with proof_id for later retrieval
     // This is the ONLY place we store a reference to the proof
-    console.log("📝 Updating order metafields...");
+    console.log(`📝 Updating order metafields for ${validOrderGid}...`);
     try {
-      const numericOrderId = order_id.replace(/\D/g, '');
-      const orderGid = `gid://shopify/Order/${numericOrderId}`;
-
+      // Use the Validated GID found earlier
       const metafields = [
         {
-          ownerId: orderGid,
+          ownerId: validOrderGid,
           namespace: INK_NAMESPACE,
           key: "proof_reference",
           type: "single_line_text_field",
           value: nfsResponse.proof_id,  // Store Alan's proof_id for retrieval
         },
         {
-          ownerId: orderGid,
+          ownerId: validOrderGid,
           namespace: INK_NAMESPACE,
           key: "verification_status",
           type: "single_line_text_field",
           value: "enrolled",
         },
         {
-          ownerId: orderGid,
+          ownerId: validOrderGid,
           namespace: INK_NAMESPACE,
           key: "nfc_uid",
           type: "single_line_text_field",
