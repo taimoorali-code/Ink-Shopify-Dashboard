@@ -317,9 +317,9 @@ export const loader = async ({
                 // Import NFSService to call Alan's API
                 const { NFSService } = await import("../services/nfs.server");
                 const proofResponse = await NFSService.retrieveProof(proofId);
-                
+
                 console.log(`✅ Proof data retrieved from Alan's API`);
-                
+
                 alanProofData = {
                     verification_status: proofResponse.delivery?.gps_verdict ? "verified" : "enrolled",
                     verify_url: `https://in.ink/verify/${proofId}`,
@@ -328,11 +328,11 @@ export const loader = async ({
                     gps_verdict: proofResponse.delivery?.gps_verdict || null,
                     enrollment_status: "enrolled",
                     nfc_uid: null, // Not returned in retrieve response
-                    shipping_gps: proofResponse.enrollment?.shipping_address_gps 
-                        ? JSON.stringify(proofResponse.enrollment.shipping_address_gps) 
+                    shipping_gps: proofResponse.enrollment?.shipping_address_gps
+                        ? JSON.stringify(proofResponse.enrollment.shipping_address_gps)
                         : null,
-                    delivery_gps: proofResponse.delivery?.delivery_gps 
-                        ? JSON.stringify(proofResponse.delivery.delivery_gps) 
+                    delivery_gps: proofResponse.delivery?.delivery_gps
+                        ? JSON.stringify(proofResponse.delivery.delivery_gps)
                         : null,
                     photo_urls: proofResponse.enrollment?.photo_urls || null,
                 };
@@ -981,209 +981,6 @@ export default function OrderDetails() {
                                             No verification data available yet. Package needs to be enrolled at warehouse.
                                         </Banner>
                                     )}
-                                </BlockStack>
-                            </Card>
-
-                            {/* Photo Upload Section */}
-                            <Card>
-                                <BlockStack gap="400">
-                                    <Text variant="headingMd" as="h2">
-                                        Delivery Proof Photos
-                                    </Text>
-                                    <Text as="p" tone="subdued">
-                                        Upload 4 photos as proof of delivery. Accepted formats:
-                                        JPG, PNG (Max 5MB each)
-                                    </Text>
-
-                                    <div
-                                        style={{
-                                            display: "grid",
-                                            gridTemplateColumns: "repeat(2, 1fr)",
-                                            gap: "16px",
-                                        }}
-                                    >
-                                        {[0, 1, 2, 3].map((index) => (
-                                            <div
-                                                key={index}
-                                                style={{
-                                                    border:
-                                                        uploadStatus[index] === "error"
-                                                            ? "2px dashed #d72c0d"
-                                                            : uploadStatus[index] === "success"
-                                                                ? "2px dashed #008060"
-                                                                : "2px dashed #c9cccf",
-                                                    borderRadius: "8px",
-                                                    padding: "16px",
-                                                    textAlign: "center",
-                                                    background: photoPreviews[index] ? "#fff" : "#f6f6f7",
-                                                    position: "relative",
-                                                    overflow: "hidden",
-                                                    minHeight: "150px",
-                                                    display: "flex",
-                                                    flexDirection: "column",
-                                                    justifyContent: "center",
-                                                    alignItems: "center",
-                                                }}
-
-                                            >
-                                                {uploadStatus[index] === "uploading" && (
-                                                    <div
-                                                        style={{
-                                                            position: "absolute",
-                                                            inset: 0,
-                                                            background: "rgba(255,255,255,0.9)",
-                                                            zIndex: 10,
-                                                            display: "flex",
-                                                            flexDirection: "column",
-                                                            alignItems: "center",
-                                                            justifyContent: "center",
-                                                        }}
-                                                    >
-                                                        <Spinner size="large" />
-                                                        <Text as="span" fontWeight="bold">
-                                                            Uploading...
-                                                        </Text>
-                                                        <div
-                                                            style={{
-                                                                width: "80%",
-                                                                height: 4,
-                                                                background: "#eee",
-                                                                marginTop: 8,
-                                                            }}
-                                                        >
-                                                            <div
-                                                                style={{
-                                                                    width: `${uploadProgress[index]}%`,
-                                                                    height: "100%",
-                                                                    background: "green",
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {uploadStatus[index] === "success" && (
-                                                    <div
-                                                        style={{
-                                                            position: "absolute",
-                                                            top: 8,
-                                                            right: 8,
-                                                            zIndex: 5,
-                                                        }}
-                                                    >
-                                                        <Badge tone="success">VERIFIED</Badge>
-                                                    </div>
-                                                )}
-
-                                                {photoPreviews[index] ? (
-                                                    <>
-                                                        <img
-                                                            src={photoPreviews[index]!}
-                                                            alt="Preview"
-                                                            style={{
-                                                                width: "100%",
-                                                                maxHeight: "120px",
-                                                                objectFit: "cover",
-                                                                marginBottom: 8,
-                                                            }}
-                                                        />
-                                                        <InlineStack gap="200">
-                                                            <Button
-                                                                tone="critical"
-                                                                onClick={() =>
-                                                                    handleRemovePhoto(index)
-                                                                }
-                                                                disabled={
-                                                                    uploadStatus[index] === "uploading"
-                                                                }
-                                                            >
-                                                                Remove
-                                                            </Button>
-                                                            {uploadStatus[index] !== "success" && (
-                                                                <Button
-                                                                    variant="primary"
-                                                                    onClick={() =>
-                                                                        handleUploadPhoto(index)
-                                                                    }
-                                                                    disabled={
-                                                                        uploadStatus[index] === "uploading"
-                                                                    }
-                                                                >
-                                                                    Upload
-                                                                </Button>
-                                                            )}
-                                                            {uploadStatus[index] === "error" && (
-                                                                <Button
-                                                                    onClick={() =>
-                                                                        handleRetryUpload(index)
-                                                                    }
-                                                                >
-                                                                    Retry
-                                                                </Button>
-                                                            )}
-                                                        </InlineStack>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <div
-                                                            style={{
-                                                                fontSize: "32px",
-                                                                marginBottom: 8,
-                                                            }}
-                                                        >
-                                                            📷
-                                                        </div>
-                                                        <input
-                                                            type="file"
-                                                            accept="image/*"
-                                                            id={`photo-input-${index}`}
-                                                            style={{ display: "none" }}
-                                                            onChange={(e) =>
-                                                                handleFileSelect(
-                                                                    index,
-                                                                    e.target.files?.[0] || null
-                                                                )
-                                                            }
-                                                        />
-                                                        <label htmlFor={`photo-input-${index}`}>
-                                                            <Button
-                                                                onClick={() =>
-                                                                    document
-                                                                        .getElementById(
-                                                                            `photo-input-${index}`
-                                                                        )
-                                                                        ?.click()
-                                                                }
-                                                            >
-                                                                Choose File
-                                                            </Button>
-                                                        </label>
-                                                    </>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div
-                                        style={{
-                                            background: "#f6f6f7",
-                                            padding: 12,
-                                            borderRadius: 8,
-                                        }}
-                                    >
-                                        <InlineStack align="space-between">
-                                            <Text as="span" fontWeight="bold">
-                                                Upload Status:
-                                            </Text>
-                                            <Text as="span">
-                                                {
-                                                    uploadStatus.filter((s) => s === "success")
-                                                        .length
-                                                }
-                                                /4 photos verified
-                                            </Text>
-                                        </InlineStack>
-                                    </div>
                                 </BlockStack>
                             </Card>
                         </BlockStack>
