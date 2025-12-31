@@ -917,16 +917,18 @@ export default function OrderDetails() {
                                             {order.metafields.delivery_gps && (
                                                 <BlockStack gap="100">
                                                     <Text variant="bodySm" as="span" tone="subdued">Warehouse Location</Text>
-                                                    {(() => {
-                                                        const gps = formatGPS(order.metafields.delivery_gps);
-                                                        return gps?.url ? (
-                                                            <Button url={gps.url} external size="slim" variant="plain">
-                                                                📍 {gps.text}
-                                                            </Button>
-                                                        ) : (
-                                                            <Text variant="bodyMd" as="span">📍 {gps?.text || "N/A"}</Text>
-                                                        );
-                                                    })()}
+                                                    <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                                                        {(() => {
+                                                            const gps = formatGPS(order.metafields.delivery_gps);
+                                                            return gps?.url ? (
+                                                                <Button url={gps.url} external size="slim" variant="plain" textAlign="left">
+                                                                    📍 {gps.text}
+                                                                </Button>
+                                                            ) : (
+                                                                <Text variant="bodyMd" as="span">📍 {gps?.text || "N/A"}</Text>
+                                                            );
+                                                        })()}
+                                                    </div>
                                                 </BlockStack>
                                             )}
                                         </div>
