@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "45cc130ef59cbeaf9133acea201981ed"
-name = "Smusic "
+name = "ink. Shipping"
 application_url = "https://shopifyapp.terzettoo.com"
 embedded = true
 
