@@ -31,11 +31,11 @@ interface StatusBadge {
 }
 
 // Loader: Fetch orders with metafields from Shopify
-// Shows orders with INK Protected Delivery (via metafield OR line item)
+// Shows orders with INK Protected Delivery (via tag, metafield, OR line item)
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { admin } = await authenticate.admin(request);
 
-    // GraphQL query to fetch orders WITH metafields and line items
+    // GraphQL query to fetch orders WITH metafields, tags, and line items
     const query = `
     query GetOrders {
       orders(first: 50, reverse: true) {
@@ -57,6 +57,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               lastName
               email
             }
+            tags
             metafields(namespace: "ink", first: 10) {
               edges {
                 node {
@@ -97,10 +98,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 metafields[mfEdge.node.key] = mfEdge.node.value;
             });
 
-            // Check if INK order via metafield
+            // Check if INK order via TAG (NEW - most reliable)
+            const hasInkTag = order.tags?.includes("INK-Premium-Delivery");
+
+            // Check if INK order via metafield (NEW)
+            const hasDeliveryTypeMetafield = metafields.delivery_type === "premium";
+
+            // Check if INK order via OLD metafield (backward compatibility)
             const hasInkMetafield = metafields.ink_premium_order === "true";
 
-            // Check if INK order via line items (for backward compatibility)
+            // Check if INK order via line items (backward compatibility)
             let hasInkLineItem = false;
             for (const lineItem of order.lineItems?.edges || []) {
                 const title = (lineItem.node?.title || "").toLowerCase();
@@ -117,7 +124,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 }
             }
 
-            const isInkOrder = hasInkMetafield || hasInkLineItem;
+            const isInkOrder = hasInkTag || hasDeliveryTypeMetafield || hasInkMetafield || hasInkLineItem;
 
             // Determine verification status from metafields
             const verificationStatus = metafields.verification_status || "Pending";
