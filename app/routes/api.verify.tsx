@@ -55,6 +55,118 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         console.log("✅ Alan's server response:", alanData);
 
         // =================================================================
+        // FALLBACK: Update metafields immediately (redundancy with webhook)
+        // This ensures dashboard updates even if webhook fails/is not configured
+        // =================================================================
+        (async () => {
+            try {
+                console.log("\n📝 =================================================");
+                console.log("📝 Updating Metafields as Fallback");
+                console.log("📝 =================================================");
+                
+                const { PrismaClient } = await import("@prisma/client");
+                const prisma = new PrismaClient();
+                
+                const session = await prisma.session.findFirst({ where: { isOnline: false } });
+                
+                if (!session) {
+                    console.warn("⚠️ No session found for metafield update");
+                    await prisma.$disconnect();
+                    return;
+                }
+                
+                const adminGraphql = async (query: string, variables?: any) => {
+                    const response = await fetch(`https://${session.shop}/admin/api/2024-10/graphql.json`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Shopify-Access-Token": session.accessToken,
+                        },
+                        body: JSON.stringify({ query, variables }),
+                    });
+                    return response.json();
+                };
+                
+                // Find order by proof_id in metafields
+                const searchQuery = `#graphql
+                    query SearchOrderByProof($query: String!) {
+                        orders(first: 1, query: $query) {
+                            edges {
+                                node {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                    }
+                `;
+                
+                console.log(`🔍 Searching for order with proof_id: ${alanData.proof_id}`);
+                const searchResult = await adminGraphql(searchQuery, { 
+                    query: `metafield.ink.proof_reference:${alanData.proof_id}` 
+                });
+                
+                if (searchResult?.data?.orders?.edges?.length > 0) {
+                    const orderGid = searchResult.data.orders.edges[0].node.id;
+                    const orderName = searchResult.data.orders.edges[0].node.name;
+                    console.log(`✅ Found order ${orderName} (${orderGid})`);
+                    
+                    const metafields = [
+                        {
+                            ownerId: orderGid,
+                            namespace: "ink",
+                            key: "verification_status",
+                            type: "single_line_text_field",
+                            value: "verified",
+                        },
+                        {
+                            ownerId: orderGid,
+                            namespace: "ink",
+                            key: "gps_verdict",
+                            type: "single_line_text_field",
+                            value: alanData.gps_verdict || "unknown",
+                        },
+                        {
+                            ownerId: orderGid,
+                            namespace: "ink",
+                            key: "delivery_timestamp",
+                            type: "single_line_text_field",
+                            value: new Date().toISOString(),
+                        },
+                    ];
+                    
+                    const mutation = `
+                        mutation SetVerificationMetafields($metafields: [MetafieldsSetInput!]!) {
+                            metafieldsSet(metafields: $metafields) {
+                                userErrors { field message }
+                            }
+                        }
+                    `;
+                    
+                    const metaResult = await adminGraphql(mutation, { metafields });
+                    
+                    if (metaResult.data?.metafieldsSet?.userErrors?.length > 0) {
+                        console.error("⚠️ Metafield errors:", metaResult.data.metafieldsSet.userErrors);
+                    } else {
+                        console.log("✅ Metafields updated immediately via fallback");
+                        console.log(`   - verification_status: verified`);
+                        console.log(`   - gps_verdict: ${alanData.gps_verdict || "unknown"}`);
+                    }
+                } else {
+                    console.warn(`⚠️ Could not find order with proof_id: ${alanData.proof_id}`);
+                }
+                
+                await prisma.$disconnect();
+                console.log("📝 Fallback metafield update completed\n");
+            } catch (fallbackError) {
+                console.error("❌ Fallback metafield update failed:", fallbackError);
+            }
+        })();
+        // =================================================================
+        // END FALLBACK
+        // =================================================================
+
+        // =================================================================
         // TESTING MODE: Send email on EVERY scan
         // TODO: Remove this after testing - webhook should handle it in production
         // =================================================================
