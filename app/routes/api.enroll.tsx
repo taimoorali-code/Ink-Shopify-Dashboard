@@ -101,6 +101,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             customer {
               phone
             }
+            metafield(namespace: "ink", key: "customer_phone") {
+              value
+            }
           }
         }
       `;
@@ -126,6 +129,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   name
                   customer {
                     phone
+                  }
+                  metafield(namespace: "ink", key: "customer_phone") {
+                    value
                   }
                 }
               }
@@ -176,13 +182,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       // Since orderGid is const, we'll extract the valid ID from data
       validOrderGid = orderData.data.order.id;
 
-      const customerPhone = orderData.data?.order?.customer?.phone;
+      // Extract phone: Priority 1 = Metafield (from webhook), Priority 2 = Customer object
+      const metafieldPhone = orderData.data?.order?.metafield?.value;
+      const customerObjectPhone = orderData.data?.order?.customer?.phone;
+      const customerPhone = metafieldPhone || customerObjectPhone;
+      
+      console.log(`📞 Phone Details - Metafield: ${metafieldPhone || "N/A"}, Customer Object: ${customerObjectPhone || "N/A"}`);
 
       if (customerPhone) {
         // Extract last 4 digits (remove non-numeric characters)
         const phoneDigits = customerPhone.replace(/\D/g, '');
         customer_phone_last4 = phoneDigits.slice(-4);
-        console.log(`✅ Customer phone last 4: ${customer_phone_last4}`);
+        console.log(`✅ Using customer phone last 4: ${customer_phone_last4}`);
       } else {
         console.warn("⚠️ No customer phone found for order");
       }
