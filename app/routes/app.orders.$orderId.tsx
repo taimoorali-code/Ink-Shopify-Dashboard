@@ -734,20 +734,43 @@ export default function OrderDetails() {
         }
     };
 
+    // Determine if order is verified
+    const isVerified = order.metafields.verification_status?.toLowerCase() === "verified";
+    const isEnrolled = order.metafields.verification_status?.toLowerCase() === "enrolled";
+
     return (
-        <Page>
-            <BlockStack gap="500">
-                {/* Header Section */}
-                <Card>
-                    <BlockStack gap="200">
-                        <InlineStack align="space-between" blockAlign="center">
-                            <InlineStack gap="200" blockAlign="center">
-                                <Text variant="headingLg" as="h1">
-                                    {order.name}
-                                </Text>
-                                <Badge tone={badgeTone(order.financialStatus)}>
-                                    {order.financialStatus}
-                                </Badge>
+        <div style={{ minHeight: "100vh", background: "#ffffff" }}>
+            {/* Premium Black Hero Header */}
+            <div className="ink-hero">
+                <div className="ink-container">
+                    <h1 className="ink-hero-title">
+                        {isVerified ? "Your premium delivery is confirmed" : 
+                         isEnrolled ? "Premium delivery enrolled" :
+                         "Order Details"}
+                    </h1>
+                    <p className="ink-hero-subtitle">
+                        {isVerified ? `Delivered ${order.metafields.delivery_gps ? "and verified" : ""}` :
+                         isEnrolled ? "Awaiting customer verification" :
+                         `Order ${order.name}`}
+                    </p>
+                </div>
+            </div>
+
+            {/* Polaris Page Content with Premium Spacing */}
+            <div className="ink-container" style={{ paddingTop: "48px", paddingBottom: "48px" }}>
+                <Page>
+                    <BlockStack gap="500">
+                        {/* Header Section */}
+                        <Card>
+                            <BlockStack gap="200">
+                                <InlineStack align="space-between" blockAlign="center">
+                                    <InlineStack gap="200" blockAlign="center">
+                                        <Text variant="headingLg" as="h1">
+                                            {order.name}
+                                        </Text>
+                                        <Badge tone={badgeTone(order.financialStatus)}>
+                                            {order.financialStatus}
+                                        </Badge>
                                 <Badge tone={badgeTone(order.fulfillmentStatus)}>
                                     {order.fulfillmentStatus || "UNFULFILLED"}
                                 </Badge>
@@ -1053,8 +1076,10 @@ export default function OrderDetails() {
                         </BlockStack>
                     </Layout.Section>
                 </Layout>
-            </BlockStack>
-        </Page>
+                    </BlockStack>
+                </Page>
+            </div>
+        </div>
     );
 }
 
