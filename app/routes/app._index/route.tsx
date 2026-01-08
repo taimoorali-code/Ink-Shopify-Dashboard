@@ -24,18 +24,10 @@ interface LoaderData {
     orders: Order[];
 }
 
-interface StatusBadge {
-    tone: "success" | "attention" | "critical" | "info";
-    icon: string;
-    text: string;
-}
-
 // Loader: Fetch orders with metafields from Shopify
-// Shows orders with INK Protected Delivery (via tag, metafield, OR line item)
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { admin } = await authenticate.admin(request);
 
-    // GraphQL query to fetch orders WITH metafields, tags, and line items
     const query = `
     query GetOrders {
       orders(first: 50, reverse: true) {
@@ -87,27 +79,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const response = await admin.graphql(query);
         const data = await response.json();
 
-        // Map Shopify data with metafields for status
         const allOrders: Order[] = data.data?.orders?.edges?.map((edge: any) => {
             const order = edge.node;
             const numericId = order.id.replace("gid://shopify/Order/", "");
 
-            // Extract metafields
             const metafields: Record<string, string> = {};
             order.metafields?.edges?.forEach((mfEdge: any) => {
                 metafields[mfEdge.node.key] = mfEdge.node.value;
             });
 
-            // Check if INK order via TAG (NEW - most reliable)
             const hasInkTag = order.tags?.includes("INK-Premium-Delivery");
-
-            // Check if INK order via metafield (NEW)
             const hasDeliveryTypeMetafield = metafields.delivery_type === "premium";
-
-            // Check if INK order via OLD metafield (backward compatibility)
             const hasInkMetafield = metafields.ink_premium_order === "true";
 
-            // Check if INK order via line items (backward compatibility)
             let hasInkLineItem = false;
             for (const lineItem of order.lineItems?.edges || []) {
                 const title = (lineItem.node?.title || "").toLowerCase();
@@ -115,7 +99,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     hasInkLineItem = true;
                     break;
                 }
-                // Also check custom attributes
                 for (const attr of lineItem.node?.customAttributes || []) {
                     if (attr.key === "_ink_premium_fee" && attr.value === "true") {
                         hasInkLineItem = true;
@@ -126,7 +109,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
             const isInkOrder = hasInkTag || hasDeliveryTypeMetafield || hasInkMetafield || hasInkLineItem;
 
-            // Determine verification status from metafields
             const verificationStatus = metafields.verification_status || "Pending";
             const hasProof = !!metafields.proof_reference;
             const nfcUid = metafields.nfc_uid || "";
@@ -152,7 +134,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             };
         }) || [];
 
-        // Filter to only show INK orders
         const orders = allOrders.filter((order: any) => order.isInkOrder);
 
         return { orders };
@@ -161,22 +142,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         return { orders: [] };
     }
 };
-
-// Helper function to get badge tone based on status
-function getStatusBadge(status: string): StatusBadge {
-    const statusLower = status ? status.toLowerCase() : "pending";
-
-    if (statusLower === "verified") {
-        return { tone: "success", icon: "✅", text: "Verified" };
-    }
-
-    if (statusLower === "enrolled") {
-        return { tone: "info", icon: "📦", text: "Enrolled" };
-    }
-
-    // Everything else shows as Pending
-    return { tone: "attention", icon: "⏳", text: "Pending" };
-}
 
 // Helper function to format date
 function formatDate(isoDate: string): string {
@@ -198,196 +163,149 @@ export default function DashboardHome() {
         order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Calculate stats
+    const verifiedCount = orders.filter((o: Order) => o.verificationStatus.toLowerCase() === "verified").length;
+    const enrolledCount = orders.filter((o: Order) => o.verificationStatus.toLowerCase() === "enrolled").length;
+    const pendingCount = orders.filter((o: Order) => 
+        o.verificationStatus.toLowerCase() !== "verified" && 
+        o.verificationStatus.toLowerCase() !== "enrolled"
+    ).length;
+
     return (
-        <s-page>
-            <s-section heading="ink. Shipping Dashboard">
-                {/* Summary Cards */}
-                <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                    gap: "16px",
-                    marginBottom: "24px"
-                }}>
-                    <div style={{
-                        padding: "16px",
-                        background: "#f6f6f7",
-                        borderRadius: "8px",
-                        border: "1px solid #e1e3e5"
-                    }}>
-                        <div style={{ fontSize: "24px", fontWeight: "bold" }}>{orders.length}</div>
-                        <div style={{ color: "#6d7175", fontSize: "14px" }}>Total Orders</div>
+        <div style={{ minHeight: "100vh", background: "#ffffff" }}>
+            {/* Black Hero Header */}
+            <div className="ink-hero">
+                <div className="ink-container">
+                    <h1 className="ink-hero-title">ink. Shipping Dashboard</h1>
+                    <p className="ink-hero-subtitle">Premium delivery protection and verification</p>
+                </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="ink-container" style={{ paddingTop: "48px", paddingBottom: "48px" }}>
+                {/* Stats Grid */}
+                <div className="ink-stats-grid">
+                    <div className="ink-stat-card">
+                        <div className="ink-stat-value">{orders.length}</div>
+                        <div className="ink-stat-label">Total Orders</div>
                     </div>
 
-                    <div style={{
-                        padding: "16px",
-                        background: "#f6f6f7",
-                        borderRadius: "8px",
-                        border: "1px solid #e1e3e5"
-                    }}>
-                        <div style={{ fontSize: "24px", fontWeight: "bold", color: "#008060" }}>
-                            {orders.filter((o: Order) => o.verificationStatus.toLowerCase() === "verified").length}
-                        </div>
-                        <div style={{ color: "#6d7175", fontSize: "14px" }}>Verified</div>
+                    <div className="ink-stat-card">
+                        <div className="ink-stat-value" style={{ color: "#000000" }}>{verifiedCount}</div>
+                        <div className="ink-stat-label">Verified</div>
                     </div>
 
-                    <div style={{
-                        padding: "16px",
-                        background: "#f6f6f7",
-                        borderRadius: "8px",
-                        border: "1px solid #e1e3e5"
-                    }}>
-                        <div style={{ fontSize: "24px", fontWeight: "bold", color: "#0066cc" }}>
-                            {orders.filter((o: Order) => o.verificationStatus.toLowerCase() === "enrolled").length}
-                        </div>
-                        <div style={{ color: "#6d7175", fontSize: "14px" }}>Enrolled</div>
+                    <div className="ink-stat-card">
+                        <div className="ink-stat-value" style={{ color: "#000000" }}>{enrolledCount}</div>
+                        <div className="ink-stat-label">Enrolled</div>
                     </div>
 
-                    <div style={{
-                        padding: "16px",
-                        background: "#f6f6f7",
-                        borderRadius: "8px",
-                        border: "1px solid #e1e3e5"
-                    }}>
-                        <div style={{ fontSize: "24px", fontWeight: "bold", color: "#ffa500" }}>
-                            {orders.filter((o: Order) =>
-                                o.verificationStatus.toLowerCase() !== "verified" &&
-                                o.verificationStatus.toLowerCase() !== "enrolled"
-                            ).length}
-                        </div>
-                        <div style={{ color: "#6d7175", fontSize: "14px" }}>Pending</div>
+                    <div className="ink-stat-card">
+                        <div className="ink-stat-value" style={{ color: "#999999" }}>{pendingCount}</div>
+                        <div className="ink-stat-label">Pending</div>
                     </div>
                 </div>
 
                 {/* Search Bar */}
-                <div style={{ marginBottom: "16px" }}>
-                    <s-text-field
-                        label="Search Orders"
+                <div style={{ marginBottom: "32px" }}>
+                    <input
+                        type="text"
+                        className="ink-input"
                         placeholder="Search by order number or customer name..."
                         value={searchTerm}
-                        // @ts-ignore
-                        onChange={(e) => setSearchTerm(e.currentTarget.value)}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
 
                 {/* Orders Table */}
                 {filteredOrders.length === 0 ? (
-                    <div style={{
-                        padding: "48px",
-                        textAlign: "center",
-                        background: "#f6f6f7",
-                        borderRadius: "8px"
-                    }}>
-                        <p style={{ fontSize: "16px", color: "#6d7175" }}>
-                            {searchTerm ? "No orders found matching your search" : "No orders yet"}
+                    <div className="ink-empty-state">
+                        <h3 className="ink-empty-state-title">
+                            {searchTerm ? "No orders found" : "No orders yet"}
+                        </h3>
+                        <p className="ink-empty-state-text">
+                            {searchTerm ? "Try adjusting your search criteria" : "Orders with INK Premium Delivery will appear here"}
                         </p>
                     </div>
                 ) : (
-                    <div style={{
-                        border: "1px solid #e1e3e5",
-                        borderRadius: "8px",
-                        overflow: "hidden"
-                    }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                            <thead style={{ background: "#f6f6f7" }}>
-                                <tr>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e1e3e5" }}>
-                                        Order
-                                    </th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e1e3e5" }}>
-                                        Customer
-                                    </th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e1e3e5" }}>
-                                        Date
-                                    </th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e1e3e5" }}>
-                                        Total
-                                    </th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e1e3e5" }}>
-                                        Status
-                                    </th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e1e3e5" }}>
-                                        Verification
-                                    </th>
-                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: "1px solid #e1e3e5" }}>
-                                        Action
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredOrders.map((order: Order) => {
-                                    const badge = getStatusBadge(order.verificationStatus);
-                                    return (
-                                        <tr key={order.id} style={{ borderBottom: "1px solid #e1e3e5" }}>
-                                            <td style={{ padding: "12px" }}>
-                                                <strong>{order.name}</strong>
-                                            </td>
-                                            <td style={{ padding: "12px" }}>
-                                                <div>{order.customerName}</div>
-                                                <div style={{ fontSize: "12px", color: "#6d7175" }}>
-                                                    {order.customerEmail}
+                    <table className="ink-table">
+                        <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Customer</th>
+                                <th>Date</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Verification</th>
+                                <th style={{ textAlign: "center" }}>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredOrders.map((order: Order) => {
+                                const statusLower = order.verificationStatus.toLowerCase();
+                                const badgeClass = 
+                                    statusLower === "verified" ? "ink-badge-verified" :
+                                    statusLower === "enrolled" ? "ink-badge-enrolled" :
+                                    "ink-badge-pending";
+                                
+                                const badgeIcon = 
+                                    statusLower === "verified" ? "✓" :
+                                    statusLower === "enrolled" ? "◆" :
+                                    "○";
+
+                                return (
+                                    <tr key={order.id}>
+                                        <td>
+                                            <strong style={{ fontWeight: 600 }}>{order.name}</strong>
+                                        </td>
+                                        <td>
+                                            <div style={{ fontWeight: 500 }}>{order.customerName}</div>
+                                            <div style={{ fontSize: "12px", color: "#999999", marginTop: "2px" }}>
+                                                {order.customerEmail}
+                                            </div>
+                                        </td>
+                                        <td style={{ color: "#666666" }}>
+                                            {formatDate(order.createdAt)}
+                                        </td>
+                                        <td>
+                                            <strong style={{ fontWeight: 600 }}>
+                                                {order.currency} {parseFloat(order.totalPrice).toFixed(2)}
+                                            </strong>
+                                        </td>
+                                        <td>
+                                            <div style={{ fontSize: "13px" }}>
+                                                <div>{order.fulfillmentStatus || "Unfulfilled"}</div>
+                                                <div style={{ color: "#999999", fontSize: "12px", marginTop: "2px" }}>
+                                                    {order.financialStatus}
                                                 </div>
-                                            </td>
-                                            <td style={{ padding: "12px" }}>
-                                                {formatDate(order.createdAt)}
-                                            </td>
-                                            <td style={{ padding: "12px" }}>
-                                                <strong>
-                                                    {order.currency} {parseFloat(order.totalPrice).toFixed(2)}
-                                                </strong>
-                                            </td>
-                                            <td style={{ padding: "12px" }}>
-                                                <div style={{ fontSize: "12px" }}>
-                                                    <div>{order.fulfillmentStatus || "Unfulfilled"}</div>
-                                                    <div style={{ color: "#6d7175" }}>{order.financialStatus}</div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className={`ink-badge ${badgeClass}`}>
+                                                {badgeIcon} {order.verificationStatus}
+                                            </span>
+                                            {order.hasProof && (
+                                                <div style={{ fontSize: "11px", color: "#666666", marginTop: "6px" }}>
+                                                    Proof ID: {order.proofId.slice(0, 12)}...
                                                 </div>
-                                            </td>
-                                            <td style={{ padding: "12px" }}>
-                                                <s-badge
-                                                    // @ts-ignore
-                                                    tone={badge.tone}
-                                                >
-                                                    {badge.icon} {badge.text}
-                                                </s-badge>
-                                                {order.hasProof && (
-                                                    <div style={{ fontSize: "11px", color: "#008060", marginTop: "4px" }}>
-                                                        📷 Photos uploaded
-                                                    </div>
-                                                )}
-                                                {order.nfcUid && (
-                                                    <div style={{ fontSize: "11px", color: "#0066cc", marginTop: "2px" }}>
-                                                        🏷️ UID: {order.nfcUid.substring(0, 12)}...
-                                                    </div>
-                                                )}
-                                                {order.proofId && (
-                                                    <div style={{ fontSize: "10px", color: "#666", marginTop: "2px" }}>
-                                                        🆔 Proof: {order.proofId.slice(0, 10)}...
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td style={{ padding: "12px", textAlign: "center" }}>
-                                                <Link
-                                                    to={`/app/orders/${order.id}`}
-                                                    style={{
-                                                        padding: "6px 12px",
-                                                        background: "#008060",
-                                                        color: "white",
-                                                        textDecoration: "none",
-                                                        borderRadius: "4px",
-                                                        fontSize: "14px",
-                                                        display: "inline-block"
-                                                    }}
-                                                >
-                                                    View Details
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                                            )}
+                                        </td>
+                                        <td style={{ textAlign: "center" }}>
+                                            <Link
+                                                to={`/app/orders/${order.id}`}
+                                                className="ink-button"
+                                                style={{ fontSize: "13px", padding: "8px 16px" }}
+                                            >
+                                                View Details
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 )}
-            </s-section>
-        </s-page>
+            </div>
+        </div>
     );
 }
