@@ -897,8 +897,14 @@ export default function OrderDetails() {
                                             <BlockStack gap="100">
                                                 <Text variant="bodySm" as="span" tone="subdued">Enrollment Status</Text>
                                                 <div>
-                                                    <Badge tone={order.metafields.verification_status === "Enrolled" ? "info" : "warning"}>
-                                                        {order.metafields.verification_status === "Enrolled" ? "📦 Enrolled" : "🕒 Pending"}
+                                                    <Badge tone={
+                                                        order.metafields.verification_status === "Verified" ? "success" :
+                                                        order.metafields.verification_status === "Enrolled" ? "info" : 
+                                                        "warning"
+                                                    }>
+                                                        {order.metafields.verification_status === "Verified" ? "✅ Enrolled" :
+                                                         order.metafields.verification_status === "Enrolled" ? "📦 Enrolled" : 
+                                                         "🕒 Pending"}
                                                     </Badge>
                                                 </div>
                                             </BlockStack>
