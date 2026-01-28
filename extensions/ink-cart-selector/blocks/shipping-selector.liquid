@@ -18,7 +18,7 @@
     {
       "type": "text",
       "id": "premium_price",
-      "label": "Premium Shipping Price",
+      "label": "Verified Delivery Price",
       "default": "$5.00"
     }
   ]
@@ -47,7 +47,7 @@
       </div>
     </label>
     
-    <!-- Premium Shipping with INK Option -->
+    <!-- Verified Delivery with INK Option -->
     <label class="ink-option ink-premium" data-option="premium">
       <input 
         type="radio" 
@@ -58,7 +58,7 @@
       <div class="ink-option-content">
         <div class="ink-option-header">
           <div class="ink-title-wrapper">
-            <strong class="ink-option-title">Premium Shipping with ink.</strong>
+            <strong class="ink-option-title">ink. Verified Delivery</strong>
             <span class="ink-badge">⭐ RECOMMENDED</span>
           </div>
           <span class="ink-price">{{ section.settings.premium_price }}</span>
@@ -74,7 +74,7 @@
   <!-- Consent Info (shown when Premium selected) -->
   <div class="ink-consent-info" id="ink-consent-{{ section.id }}" style="display: none;">
     <p class="ink-consent-text">
-      ✓ By selecting Premium Shipping, you consent to ink. delivery verification
+      ✓ By selecting Verified Delivery, you consent to ink. delivery verification
     </p>
   </div>
 </div>

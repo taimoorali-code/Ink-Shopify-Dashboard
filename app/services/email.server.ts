@@ -157,7 +157,7 @@ export const EmailService = {
           <!-- Footer -->
           <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
           <p style="font-size: 12px; color: #888; text-align: center;">
-            Sent by INK Premium Delivery for ${merchantName}.<br/>
+            Sent by INK Verified Delivery for ${merchantName}.<br/>
             This email confirms your delivery was unlocked successfully.
           </p>
         </div>

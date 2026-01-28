@@ -176,7 +176,7 @@ export default function DashboardHome() {
             {/* Black Hero Header */}
             <div className="ink-hero">
                 <div className="ink-container">
-                    <h1 className="ink-hero-title">ink. Shipping Dashboard</h1>
+                    <h1 className="ink-hero-title">ink. Verified Delivery Dashboard</h1>
                     <p className="ink-hero-subtitle">Premium delivery protection and verification</p>
                 </div>
             </div>
@@ -224,7 +224,7 @@ export default function DashboardHome() {
                             {searchTerm ? "No orders found" : "No orders yet"}
                         </h3>
                         <p className="ink-empty-state-text">
-                            {searchTerm ? "Try adjusting your search criteria" : "Orders with INK Premium Delivery will appear here"}
+                            {searchTerm ? "Try adjusting your search criteria" : "Orders with INK Verified Delivery will appear here"}
                         </p>
                     </div>
                 ) : (

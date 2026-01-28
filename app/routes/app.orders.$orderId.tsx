@@ -972,11 +972,11 @@ export default function OrderDetails() {
                                                     <Text variant="headingSm" as="h3">
                                                         👤 Delivery Confirmation
                                                     </Text>
-                                                    {order.localProof.verify_url && (
+                                                    {/* {order.localProof.verify_url && (
                                                         <Button url={order.localProof.verify_url} external size="slim">
                                                             View Authentication Record ↗
                                                         </Button>
-                                                    )}
+                                                    )} */}
                                                 </InlineStack>
 
                                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
