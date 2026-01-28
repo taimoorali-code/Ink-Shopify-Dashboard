@@ -88,14 +88,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 metafields[mfEdge.node.key] = mfEdge.node.value;
             });
 
-            const hasInkTag = order.tags?.includes("INK-Premium-Delivery");
+            const hasInkTag = order.tags?.includes("INK-Premium-Delivery") || order.tags?.includes("INK-Verified-Delivery");
             const hasDeliveryTypeMetafield = metafields.delivery_type === "premium";
             const hasInkMetafield = metafields.ink_premium_order === "true";
 
             let hasInkLineItem = false;
             for (const lineItem of order.lineItems?.edges || []) {
                 const title = (lineItem.node?.title || "").toLowerCase();
-                if (title.includes("ink delivery") || title.includes("ink protected") || title.includes("ink premium")) {
+                if (
+                    title.includes("ink delivery") || 
+                    title.includes("ink protected") || 
+                    title.includes("ink premium") ||
+                    title.includes("ink verified") ||
+                    title.includes("verified delivery")
+                ) {
                     hasInkLineItem = true;
                     break;
                 }
@@ -296,7 +302,7 @@ export default function DashboardHome() {
                                                 className="ink-button"
                                                 style={{ fontSize: "13px", padding: "8px 16px" }}
                                             >
-                                                View Details
+                                                View
                                             </Link>
                                         </td>
                                     </tr>

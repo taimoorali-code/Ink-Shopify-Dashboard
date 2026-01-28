@@ -399,87 +399,105 @@ body {
   }
   
   .ink-hero-title {
-    font-size: 32px;
+    font-size: 28px;
     line-height: 1.3;
-    margin-bottom: var(--space-sm);
   }
 
   /* Stats Grid */
   .ink-stats-grid {
     gap: var(--space-md);
+    grid-template-columns: 1fr 1fr; /* 2 columns on mobile */
   }
   
   .ink-stat-card {
-    padding: var(--space-lg);
+    padding: var(--space-md);
+  }
+  
+  .ink-stat-value {
+    font-size: 24px;
   }
 
-  /* Responsive Table - Card View */
+  /* Optimized Table View for Mobile */
   .ink-table {
-    border: none;
-    background: transparent;
+    display: table;
+    border-radius: var(--radius-sm);
   }
 
   .ink-table thead {
-    display: none;
+    display: table-header-group;
+  }
+  
+  .ink-table th {
+    font-size: 10px;
+    padding: 8px 4px;
+    white-space: nowrap;
   }
 
-  .ink-table tbody, 
-  .ink-table tr, 
-  .ink-table td {
-    display: block;
-    width: 100%;
+  .ink-table tbody {
+    display: table-row-group;
   }
 
   .ink-table tr {
-    margin-bottom: var(--space-md);
-    background: var(--ink-white);
-    border: 1px solid var(--ink-border);
-    border-radius: var(--radius-md);
-    padding: var(--space-md);
-    position: relative;
-    box-shadow: var(--shadow-sm);
+    display: table-row;
+    border: none;
+    margin: 0;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
   }
 
   .ink-table td {
-    text-align: right;
-    padding: 8px 0;
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--ink-border);
-    min-height: 40px;
-  }
-
-  .ink-table td:last-child {
-    border-bottom: none;
-    padding-top: 16px;
-    justify-content: center;
-    width: 100%;
-  }
-
-  /* Add labels via pseudo-elements */
-  .ink-table td:before {
-    font-weight: 600;
-    color: var(--ink-gray-dark);
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    display: table-cell;
+    padding: 12px 4px;
     text-align: left;
-    margin-right: auto;
+    font-size: 12px;
+    border-bottom: 1px solid var(--ink-border);
+    vertical-align: middle;
   }
 
-  .ink-table td:nth-of-type(1):before { content: "Order"; }
-  .ink-table td:nth-of-type(2):before { content: "Customer"; }
-  .ink-table td:nth-of-type(3):before { content: "Date"; }
-  .ink-table td:nth-of-type(4):before { content: "Total"; }
-  .ink-table td:nth-of-type(5):before { content: "Status"; }
-  .ink-table td:nth-of-type(6):before { content: "Verification"; }
-  .ink-table td:nth-of-type(7):before { content: ""; display: none; }
+  .ink-table td:before {
+    display: none; /* Remove labels */
+  }
   
-  /* Make action button full width */
-  .ink-table td:nth-of-type(7) .ink-button {
-    width: 100%;
-    text-align: center;
+  /* Hide less important columns on mobile */
+  .ink-table th:nth-of-type(3),
+  .ink-table td:nth-of-type(3) { /* Date */
+    display: none;
+  }
+
+  /* Customer Name - truncate */
+  .ink-table td:nth-of-type(2) {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Hide customer email on mobile */
+  .ink-table td:nth-of-type(2) div:nth-child(2) {
+    display: none;
+  }
+  
+  /* Status - stack nicely */
+  .ink-table td:nth-of-type(5) div {
+    font-size: 11px !important;
+  }
+
+  /* Verification Badges - compact */
+  .ink-badge {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  /* Action Column */
+  .ink-table td:last-child {
+    width: auto;
+    text-align: right;
+    padding-right: 0;
+  }
+
+  .ink-table td:last-child .ink-button {
+    width: auto;
+    padding: 6px 10px;
+    font-size: 12px;
   }
 }

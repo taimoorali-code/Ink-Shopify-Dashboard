@@ -19,6 +19,7 @@ interface EnrollPayload {
   shipping_address_gps: { lat: number; lng: number };
   customer_phone_last4?: string;
   warehouse_gps?: { lat: number; lng: number };
+  merchant?: string;
 }
 
 interface EnrollResponse {

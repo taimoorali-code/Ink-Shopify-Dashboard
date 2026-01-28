@@ -64,6 +64,9 @@ export async function action({ request }: any) {
     // Check if this order has INK Premium Delivery
     if (
       shippingTitle.includes("ink premium") ||
+      shippingTitle.includes("ink verified") ||
+      shippingTitle.includes("ink. verified") ||
+      shippingTitle.includes("ink. Verified") ||
       shippingTitle.includes("ink delivery")
     ) {
       // Check if already tagged

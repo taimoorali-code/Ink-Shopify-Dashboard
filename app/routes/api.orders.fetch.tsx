@@ -138,7 +138,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
 
       // Check if order has INK Premium Delivery
-      const hasInkTag = order.tags?.includes("INK-Premium-Delivery");
+      const hasInkTag = order.tags?.includes("INK-Premium-Delivery") || order.tags?.includes("INK-Verified-Delivery");
       const hasDeliveryTypeMetafield = metafields.delivery_type === "premium";
       const hasInkMetafield = metafields.ink_premium_order === "true";
 
@@ -146,7 +146,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       let hasInkLineItem = false;
       for (const lineItem of order.lineItems?.edges || []) {
         const title = (lineItem.node?.title || "").toLowerCase();
-        if (title.includes("ink delivery") || title.includes("ink protected") || title.includes("ink premium")) {
+        if (
+          title.includes("ink delivery") || 
+          title.includes("ink protected") || 
+          title.includes("ink premium") ||
+          title.includes("ink verified") ||
+          title.includes("verified delivery")
+        ) {
           hasInkLineItem = true;
           break;
         }

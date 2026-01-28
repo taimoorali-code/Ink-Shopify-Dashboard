@@ -223,7 +223,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       photo_hashes,
       shipping_address_gps,
       customer_phone_last4: customer_phone_last4 || "1234",  // Default if not available
-      merchant_name: session.shop.replace('.myshopify.com', ''), // Extract merchant name from shop domain
+      merchant: session.shop.replace('.myshopify.com', ''), // Extract merchant name from shop domain
       warehouse_gps: {
         lat: 40.7580,
         lng: -73.9855

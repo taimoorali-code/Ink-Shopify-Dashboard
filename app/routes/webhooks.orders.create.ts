@@ -48,7 +48,9 @@ function hasInkPremiumShipping(shippingLines: any[]): boolean {
     if (
       combinedText.includes("ink premium") ||
       combinedText.includes("ink delivery") ||
-      (combinedText.includes("premium delivery") && combinedText.includes("ink"))
+      (combinedText.includes("premium delivery") && combinedText.includes("ink")) ||
+      combinedText.includes("ink verified") ||
+      combinedText.includes("verified delivery")
     ) {
       console.log(`✅ Found INK Premium Delivery: title="${line.title}", code="${line.code}"`);
       return true;
@@ -141,7 +143,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         query: TAG_MUTATION,
         variables: {
           id: orderGid,
-          tags: ["INK-Premium-Delivery"]
+          tags: ["INK-Verified-Delivery"]
         }
       })
     });
@@ -151,7 +153,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (tagResult.errors) {
       console.error(`[orders/create] GraphQL errors:`, tagResult.errors);
     } else {
-      console.log(`✅ [orders/create] Tagged order ${orderName} with "INK-Premium-Delivery"`);
+      console.log(`✅ [orders/create] Tagged order ${orderName} with "INK-Verified-Delivery"`);
     }
 
     // Set initial metafields for INK Premium orders
