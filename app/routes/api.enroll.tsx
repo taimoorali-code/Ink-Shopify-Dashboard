@@ -82,21 +82,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     };
 
-    // 1. Fetch customer phone from Shopify order
-    console.log(`📞 Fetching customer phone for order ${order_id}...`);
+    // 1. Fetch customer phone AND Shop Name from Shopify
+    console.log(`📞 Fetching customer phone and shop name for order ${order_id}...`);
     let customer_phone_last4: string | undefined;
+    let merchantName = session.shop.replace('.myshopify.com', ''); // Fallback
 
     let validOrderGid: string = "";
 
     try {
       const numericOrderId = order_id.replace(/\D/g, '');
-      // Initial guess for GID - might be wrong if order_id is just a number
       const potentialGid = `gid://shopify/Order/${numericOrderId}`;
-      // Note: We used to call this 'orderGid' but now we distinguish potential vs valid
-      const orderGid = potentialGid; 
+      const orderGid = potentialGid;
 
-      const orderQuery = `
-        query getOrder($id: ID!) {
+      const combinedQuery = `
+        query getOrderAndShop($id: ID!) {
+          shop {
+            name
+          }
           order(id: $id) {
             id
             name
@@ -112,16 +114,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       let orderData;
       let orderResponse;
-      
-      // Try fetching by ID first (assuming it might be a valid GID)
-      orderResponse = await admin.graphql(orderQuery, { variables: { id: orderGid } });
+
+      // Try fetching by ID first
+      orderResponse = await admin.graphql(combinedQuery, { variables: { id: orderGid } });
       let responseJson = await orderResponse.json();
+
+      // Extract Shop Name if available
+      if (responseJson?.data?.shop?.name) {
+        merchantName = responseJson.data.shop.name;
+        console.log(`✅ Fetched Merchant Name: ${merchantName}`);
+      }
 
       // If ID lookup failed (order is null), try finding by Name (Order Number)
       if (!responseJson?.data?.order) {
-        console.warn(`⚠️ Direct ID lookup failed for ${orderGid}. Trying lookup by name (Order Number)...`);
-        
-        // PWA sends "1014", Shopify stores as "#1014" usually. Search "name:1014" works generally.
+        console.warn(`⚠️ Direct ID lookup failed for ${orderGid}. Trying lookup by name...`);
+
         const nameQuery = `#graphql
           query FindOrderByName($query: String!) {
             orders(first: 1, query: $query) {
@@ -140,29 +147,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }
           }
         `;
-        
-        // Try exact match with and without hash just in case
+
         const searchResponse = await admin.graphql(nameQuery, { variables: { query: `name:${numericOrderId}` } });
         const searchJson = await searchResponse.json();
-        
+
         if (searchJson?.data?.orders?.edges?.length > 0) {
-           const foundOrder = searchJson.data.orders.edges[0].node;
-           console.log(`✅ Found order by name: ${foundOrder.name} (ID: ${foundOrder.id})`);
-           // Update orderGid to the REAL valid GID
-           // CRITICAL: We must update orderGid because it's used later for metafields
-           // We can't update 'const orderGid', so we need to change how we use it.
-           // Refactoring to use a mutable variable slightly or just overwrite orderData structure.
-           orderData = { data: { order: foundOrder } };
+          const foundOrder = searchJson.data.orders.edges[0].node;
+          console.log(`✅ Found order by name: ${foundOrder.name} (ID: ${foundOrder.id})`);
+          orderData = { data: { order: foundOrder } };
         } else {
-           // Double check with # prefix?
-           const searchResponse2 = await admin.graphql(nameQuery, { variables: { query: `name:#${numericOrderId}` } });
-           const searchJson2 = await searchResponse2.json();
-           
-           if (searchJson2?.data?.orders?.edges?.length > 0) {
-              const foundOrder = searchJson2.data.orders.edges[0].node;
-              console.log(`✅ Found order by name (#): ${foundOrder.name} (ID: ${foundOrder.id})`);
-              orderData = { data: { order: foundOrder } };
-           }
+          // Try with #
+          const searchResponse2 = await admin.graphql(nameQuery, { variables: { query: `name:#${numericOrderId}` } });
+          const searchJson2 = await searchResponse2.json();
+          if (searchJson2?.data?.orders?.edges?.length > 0) {
+            const foundOrder = searchJson2.data.orders.edges[0].node;
+            orderData = { data: { order: foundOrder } };
+          }
         }
       } else {
         orderData = responseJson;
@@ -179,7 +179,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         );
       }
-      
+
       // Update global ID variable for later use (Metafields)
       // Since orderGid is const, we'll extract the valid ID from data
       validOrderGid = orderData.data.order.id;
@@ -188,7 +188,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const metafieldPhone = orderData.data?.order?.metafield?.value;
       const customerObjectPhone = orderData.data?.order?.customer?.phone;
       const customerPhone = metafieldPhone || customerObjectPhone;
-      
+
       console.log(`📞 Phone Details - Metafield: ${metafieldPhone || "N/A"}, Customer Object: ${customerObjectPhone || "N/A"}`);
 
       if (customerPhone) {
@@ -214,7 +214,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // 2. Call Alan's NFS API to Enroll
     // Alan's API is the SINGLE SOURCE OF TRUTH - no local database save
     console.log("🚀 Calling Alan's NFS API /enroll...");
-    
+
     const enrollPayload = {
       order_id,
       nfc_uid: serial_number,  // Send original serial number to Alan (e.g., "ef:8b:c4:c3")
@@ -223,7 +223,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       photo_hashes,
       shipping_address_gps,
       customer_phone_last4: customer_phone_last4 || "1234",  // Default if not available
-      merchant: session.shop.replace('.myshopify.com', ''), // Extract merchant name from shop domain
+      merchant: "Smusic",
       warehouse_gps: {
         lat: 40.7580,
         lng: -73.9855
@@ -238,9 +238,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       console.error("❌ NFS enrollment failed:", error.message);
       await prisma.$disconnect();
       return new Response(
-        JSON.stringify({ 
-          error: "Enrollment failed", 
-          details: error.message 
+        JSON.stringify({
+          error: "Enrollment failed",
+          details: error.message
         }),
         {
           status: 500,
@@ -288,7 +288,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       const metaResult = await admin.graphql(mutation, { variables: { metafields } });
       const metaData = await metaResult.json();
-      
+
       if (metaData.data?.metafieldsSet?.userErrors?.length > 0) {
         console.warn("⚠️ Metafield errors:", metaData.data.metafieldsSet.userErrors);
       } else {
