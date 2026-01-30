@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useLoaderData, Link } from "react-router";
+import { useState, useEffect } from "react";
+import { useLoaderData, Link, useRevalidator } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../../shopify.server";
 
@@ -18,6 +18,14 @@ interface Order {
     nfcUid: string;
     hasProof: boolean;
     proofId: string;
+    isInkOrder: boolean; // Add this to interface
+    metafields?: any; // Add optional metafields
+    tags?: string[]; // Add optional tags
+    lineItems?: any; // Add optional lineItems
+    totalPriceSet?: any;
+    customer?: any;
+    displayFinancialStatus?: string;
+    displayFulfillmentStatus?: string;
 }
 
 interface LoaderData {
@@ -161,7 +169,19 @@ function formatDate(isoDate: string): string {
 
 export default function DashboardHome() {
     const { orders } = useLoaderData<LoaderData>();
+    const revalidator = useRevalidator();
     const [searchTerm, setSearchTerm] = useState("");
+
+    // Auto-refresh dashboard every 30 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (revalidator.state === "idle") {
+                revalidator.revalidate();
+            }
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(interval);
+    }, [revalidator]);
 
     // Filter orders based on search
     const filteredOrders = orders.filter((order: Order) =>
@@ -223,7 +243,6 @@ export default function DashboardHome() {
                     />
                 </div>
 
-                {/* Orders Table */}
                 {filteredOrders.length === 0 ? (
                     <div className="ink-empty-state">
                         <h3 className="ink-empty-state-title">
@@ -234,82 +253,139 @@ export default function DashboardHome() {
                         </p>
                     </div>
                 ) : (
-                    <table className="ink-table">
-                        <thead>
-                            <tr>
-                                <th>Order</th>
-                                <th>Customer</th>
-                                <th>Date</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                                <th>Verification</th>
-                                <th style={{ textAlign: "center" }}>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <>
+                        {/* Mobile Orders List (Visible only on mobile) */}
+                        <div className="ink-mobile-order-list">
                             {filteredOrders.map((order: Order) => {
                                 const statusLower = order.verificationStatus.toLowerCase();
                                 const badgeClass = 
                                     statusLower === "verified" ? "ink-badge-verified" :
                                     statusLower === "enrolled" ? "ink-badge-enrolled" :
                                     "ink-badge-pending";
-                                
-                                const badgeIcon = 
-                                    statusLower === "verified" ? "✓" :
-                                    statusLower === "enrolled" ? "◆" :
-                                    "○";
 
                                 return (
-                                    <tr key={order.id}>
-                                        <td>
-                                            <strong style={{ fontWeight: 600 }}>{order.name}</strong>
-                                        </td>
-                                        <td>
-                                            <div style={{ fontWeight: 500 }}>{order.customerName}</div>
-                                            <div style={{ fontSize: "12px", color: "#999999", marginTop: "2px" }}>
-                                                {order.customerEmail}
-                                            </div>
-                                        </td>
-                                        <td style={{ color: "#666666" }}>
-                                            {formatDate(order.createdAt)}
-                                        </td>
-                                        <td>
-                                            <strong style={{ fontWeight: 600 }}>
-                                                {order.currency} {parseFloat(order.totalPrice).toFixed(2)}
-                                            </strong>
-                                        </td>
-                                        <td>
-                                            <div style={{ fontSize: "13px" }}>
-                                                <div>{order.fulfillmentStatus || "Unfulfilled"}</div>
-                                                <div style={{ color: "#999999", fontSize: "12px", marginTop: "2px" }}>
-                                                    {order.financialStatus}
+                                    <Link to={`/app/orders/${order.id}`} key={order.id} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                        <div className="ink-mobile-card">
+                                            <div className="ink-mobile-card-top">
+                                                <div className="ink-mobile-customer">
+                                                    {order.customerName}
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <div className="ink-mobile-price">
+                                                        {order.currency} {parseFloat(order.totalPrice).toFixed(2)}
+                                                    </div>
+                                                    <span style={{ color: '#ccc', fontSize: '18px' }}>›</span>
                                                 </div>
                                             </div>
-                                        </td>
-                                        <td>
-                                            <span className={`ink-badge ${badgeClass}`}>
-                                                {badgeIcon} {order.verificationStatus}
-                                            </span>
-                                            {order.hasProof && (
-                                                <div style={{ fontSize: "11px", color: "#666666", marginTop: "6px" }}>
-                                                    Proof ID: {order.proofId.slice(0, 12)}...
+
+                                            <div className="ink-mobile-subtop">
+                                                <span className="ink-mobile-id">{order.name}</span>
+                                                <span className="ink-meta-dot">•</span>
+                                                <span className="ink-mobile-date" suppressHydrationWarning>
+                                                    {formatDate(order.createdAt)}
+                                                </span>
+                                            </div>
+                                            
+                                            {order.lineItems?.edges?.[0]?.node?.title && (
+                                                <div className="ink-mobile-product">
+                                                    {order.lineItems.edges[0].node.title}
                                                 </div>
                                             )}
-                                        </td>
-                                        <td style={{ textAlign: "center" }}>
-                                            <Link
-                                                to={`/app/orders/${order.id}`}
-                                                className="ink-button"
-                                                style={{ fontSize: "13px", padding: "8px 16px" }}
-                                            >
-                                                View
-                                            </Link>
-                                        </td>
-                                    </tr>
+                                            
+                                            <div className="ink-mobile-footer">
+                                                <span className={`ink-badge ${badgeClass} ink-mobile-badge`}>
+                                                    {order.verificationStatus}
+                                                </span>
+                                                <span className="ink-mobile-fulfillment">
+                                                    {order.fulfillmentStatus || "Unfulfilled"}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </Link>
                                 );
                             })}
-                        </tbody>
-                    </table>
+                        </div>
+
+                        {/* Desktop Table (Hidden on mobile) */}
+                        <div className="ink-desktop-table-container">
+                            <table className="ink-table">
+                                <thead>
+                                    <tr>
+                                        <th>Order</th>
+                                        <th>Customer</th>
+                                        <th>Date</th>
+                                        <th>Total</th>
+                                        <th>Status</th>
+                                        <th>Verification</th>
+                                        <th style={{ textAlign: "center" }}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredOrders.map((order: Order) => {
+                                        const statusLower = order.verificationStatus.toLowerCase();
+                                        const badgeClass = 
+                                            statusLower === "verified" ? "ink-badge-verified" :
+                                            statusLower === "enrolled" ? "ink-badge-enrolled" :
+                                            "ink-badge-pending";
+                                        
+                                        const badgeIcon = 
+                                            statusLower === "verified" ? "✓" :
+                                            statusLower === "enrolled" ? "◆" :
+                                            "○";
+
+                                        return (
+                                            <tr key={order.id}>
+                                                <td>
+                                                    <strong style={{ fontWeight: 600 }}>{order.name}</strong>
+                                                </td>
+                                                <td>
+                                                    <div style={{ fontWeight: 500 }}>{order.customerName}</div>
+                                                    <div style={{ fontSize: "12px", color: "#999999", marginTop: "2px" }}>
+                                                        {order.customerEmail}
+                                                    </div>
+                                                </td>
+                                                <td style={{ color: "#666666" }} suppressHydrationWarning>
+                                                    {formatDate(order.createdAt)}
+                                                </td>
+                                                <td>
+                                                    <strong style={{ fontWeight: 600 }}>
+                                                        {order.currency} {parseFloat(order.totalPrice).toFixed(2)}
+                                                    </strong>
+                                                </td>
+                                                <td>
+                                                    <div style={{ fontSize: "13px" }}>
+                                                        <div>{order.fulfillmentStatus || "Unfulfilled"}</div>
+                                                        <div style={{ color: "#999999", fontSize: "12px", marginTop: "2px" }}>
+                                                            {order.financialStatus}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span className={`ink-badge ${badgeClass}`}>
+                                                        {badgeIcon} {order.verificationStatus}
+                                                    </span>
+                                                    {order.hasProof && (
+                                                        <div style={{ fontSize: "11px", color: "#666666", marginTop: "6px" }}>
+                                                            Proof ID: {order.proofId.slice(0, 12)}...
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td style={{ textAlign: "center" }}>
+                                                    <Link
+                                                        to={`/app/orders/${order.id}`}
+                                                        className="ink-button"
+                                                        style={{ fontSize: "13px", padding: "8px 16px" }}
+                                                    >
+                                                        View
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
             </div>
         </div>

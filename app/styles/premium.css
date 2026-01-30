@@ -297,6 +297,11 @@ body {
   color: var(--ink-white);
 }
 
+/* Mobile List Hidden on Desktop */
+.ink-mobile-order-list {
+  display: none;
+}
+
 /* Layout Utilities */
 .ink-container {
   max-width: 1200px;
@@ -392,23 +397,108 @@ body {
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
-  /* Container adjustments */
-  .ink-container {
-    padding: 0 var(--space-md);
-  }
-
-  /* Hero adjustments */
   .ink-hero {
     padding: var(--space-xl) var(--space-md);
-  }
-  
-  .ink-stats-grid {
-    display: none;
   }
   
   .ink-hero-title {
     font-size: 28px;
     line-height: 1.3;
+  }
+  
+  /* HIDE DESKTOP ELEMENTS */
+  .ink-stats-grid,
+  .ink-desktop-table-container {
+    display: none;
+  }
+  
+  /* SHOW MOBILE LIST */
+  .ink-mobile-order-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+  
+  .ink-mobile-card {
+    background: var(--ink-white);
+    border: 1px solid var(--ink-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  
+  .ink-mobile-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+  }
+  
+  .ink-mobile-customer {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-black);
+  }
+
+  .ink-mobile-price {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink-black);
+  }
+  
+  .ink-mobile-subtop {
+    font-size: 11px;
+    color: var(--ink-gray-medium);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .ink-mobile-id {
+    font-weight: 500;
+    color: var(--ink-gray-dark);
+  }
+
+  .ink-mobile-date {
+     color: var(--ink-gray-medium);
+  }
+  
+  .ink-mobile-product {
+    font-size: 13px;
+    color: var(--ink-gray-dark);
+    margin-bottom: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--ink-gray-light);
+  }
+  
+  .ink-meta-dot {
+    margin: 0 4px;
+    font-size: 8px;
+    opacity: 0.6;
+  }
+  
+  .ink-mobile-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .ink-mobile-fulfillment {
+    font-size: 11px;
+    color: var(--ink-gray-dark);
+    text-transform: capitalize;
+  }
+  
+  .ink-mobile-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
   }
 
   /* Stats Grid */
