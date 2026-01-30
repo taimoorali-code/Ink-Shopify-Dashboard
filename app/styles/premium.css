@@ -128,7 +128,7 @@ body {
   font-family: var(--font-display);
   font-size: 32px;
   font-weight: 600;
-  color: rgb(33, 33, 33);
+  color: var(--ink-white);
   line-height: 40px;
   font-style: normal;
   margin: 0 0 var(--space-sm) 0;
@@ -400,6 +400,10 @@ body {
   /* Hero adjustments */
   .ink-hero {
     padding: var(--space-xl) var(--space-md);
+  }
+  
+  .ink-stats-grid {
+    display: none;
   }
   
   .ink-hero-title {
