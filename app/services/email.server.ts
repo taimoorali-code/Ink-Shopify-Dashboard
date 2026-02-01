@@ -20,6 +20,7 @@ interface ReturnPassportEmailPayload {
   photoUrls?: string[];  // 4 enrollment photos
   returnWindowDays?: number;  // Return window (e.g., 30 days)
   returnUrl?: string;  // URL to start return
+  productImageUrl?: string; // Main product image
 }
 
 // Legacy interface for backward compatibility
@@ -34,7 +35,7 @@ interface EmailPayload {
 export const EmailService = {
   /**
    * Sends the Return Passport email after delivery is unlocked.
-   * Includes: 4 enrollment photos, return window info, "Start Return" CTA
+   * Includes: Enrollment photos, return window info, "Start Return" CTA
    */
   async sendReturnPassportEmail(payload: ReturnPassportEmailPayload): Promise<boolean> {
     if (!apiKey || !fromEmail) {
@@ -47,119 +48,243 @@ export const EmailService = {
       customerName, 
       orderName, 
       proofUrl, 
-      merchantName = "Merchant",
+      merchantName = "InInk Verified Merchant",
       photoUrls = [],
       returnWindowDays = 30,
-      returnUrl
+      returnUrl,
+      productImageUrl
     } = payload;
-
-    // Generate photo grid HTML (2x2 layout)
-    const photosHtml = photoUrls.length > 0 ? `
-      <div style="margin: 20px 0;">
-        <h3 style="color: #2c3e50; margin-bottom: 15px;">📸 Enrollment Photos</h3>
-        <p style="font-size: 14px; color: #666; margin-bottom: 15px;">
-          These photos were taken when your package was sealed and enrolled in INK protection.
-        </p>
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-width: 400px;">
-          ${photoUrls.slice(0, 4).map((url, i) => `
-            <a href="${url}" target="_blank" style="display: block;">
-              <img src="${url}" alt="Enrollment photo ${i + 1}" 
-                   style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;" />
-            </a>
-          `).join('')}
-        </div>
-      </div>
-    ` : '';
-
-    // Return window section
-    const returnWindowHtml = `
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin: 25px 0; text-align: center; color: white;">
-        <div style="font-size: 48px; margin-bottom: 10px;">🛡️</div>
-        <h3 style="margin: 0 0 10px 0; font-size: 18px;">Return Window Active</h3>
-        <p style="margin: 0; font-size: 14px; opacity: 0.9;">
-          You have <strong>${returnWindowDays} days</strong> from today to initiate a return if needed.
-        </p>
-      </div>
-    `;
 
     // Determine return button URL
     const returnButtonUrl = returnUrl || proofUrl;
 
+    // Premium HTML Template
     const htmlContent = `
-      <!DOCTYPE html>
-      <html>
+      <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+      <html xmlns="http://www.w3.org/1999/xhtml">
       <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="margin: 0; padding: 0; background-color: #f5f5f5;">
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; margin-top: 20px;">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>Delivery Unlocked - ${orderName}</title>
+        <style type="text/css">
+          @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap');
           
+          body {
+            width: 100% !important;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f8f8;
+            font-family: 'Inter', Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+          }
+          
+          .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+          }
+
+          .header {
+            background-color: #000000;
+            padding: 30px 40px;
+            text-align: center;
+          }
+
+          .header-title {
+            color: #ffffff;
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            letter-spacing: 0.5px;
+            margin: 0;
+          }
+          
+          .content {
+            padding: 40px;
+            text-align: center;
+          }
+
+          .order-badge {
+            display: inline-block;
+            background-color: #f0f0f0;
+            color: #000000;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 24px;
+            text-transform: uppercase;
+          }
+
+          .main-heading {
+            font-family: 'Playfair Display', serif;
+            font-size: 32px;
+            color: #000000;
+            margin: 0 0 16px 0;
+            line-height: 1.2;
+          }
+
+          .sub-heading {
+            font-size: 16px;
+            color: #555555;
+            line-height: 1.6;
+            margin: 0 0 32px 0;
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+          }
+
+          .product-image {
+            width: 100%;
+            max-width: 300px;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 32px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          }
+
+          .cta-button {
+            display: inline-block;
+            background-color: #000000;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 40px;
+            border-radius: 2px;
+            font-weight: 500;
+            font-size: 14px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: opacity 0.2s;
+          }
+
+          .info-grid {
+            margin-top: 48px;
+            border-top: 1px solid #eeeeee;
+            padding-top: 32px;
+            text-align: left;
+          }
+
+          .info-item {
+            margin-bottom: 16px;
+          }
+
+          .info-label {
+            font-size: 12px;
+            color: #888888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+          }
+
+          .info-value {
+            font-size: 14px;
+            color: #000000;
+            font-weight: 500;
+          }
+
+          .footer {
+            background-color: #f8f8f8;
+            padding: 30px 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #999999;
+          }
+          
+          /* Mobile styles */
+          @media only screen and (max-width: 600px) {
+            .email-container { width: 100% !important; }
+            .content { padding: 30px 20px !important; }
+            .main-heading { font-size: 28px !important; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="email-container">
           <!-- Header -->
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="font-size: 64px; margin-bottom: 15px;">🔓</div>
-            <h1 style="color: #1a1a2e; margin: 0; font-size: 28px;">Delivery Unlocked!</h1>
-            <p style="color: #666; margin-top: 10px; font-size: 16px;">
-              Your INK Protected Delivery is complete
-            </p>
+          <div class="header">
+            <h1 class="header-title">ink. Verified Delivery</h1>
           </div>
 
-          <!-- Greeting -->
-          <p style="font-size: 16px; color: #333;">Hi ${customerName},</p>
-          <p style="font-size: 16px; color: #333; line-height: 1.6;">
-            Great news! Your delivery for order <strong>${orderName}</strong> has been successfully unlocked. 
-            Your package has been verified at your delivery location.
-          </p>
-
-          <!-- Return Window -->
-          ${returnWindowHtml}
-
-          <!-- Enrollment Photos -->
-          ${photosHtml}
-
-          <!-- Start Return CTA -->
-          <div style="background-color: #f8f9fa; padding: 25px; border-radius: 12px; margin: 25px 0; text-align: center;">
-            <p style="margin: 0 0 15px 0; font-size: 16px; color: #333;">
-              Need to start a return? Use your Return Passport below.
-            </p>
-            <a href="${returnButtonUrl}" 
-               style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); 
-                      color: white; 
-                      padding: 16px 40px; 
-                      text-decoration: none; 
-                      border-radius: 30px; 
-                      display: inline-block; 
-                      font-weight: bold;
-                      font-size: 16px;
-                      box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);">
-              🚀 Start Return
-            </a>
+          <!-- Main Content -->
+          <div class="content">
+            <div class="order-badge">Order ${orderName}</div>
             
-            <p style="margin-top: 20px; font-size: 13px; color: #888;">
-              Or copy this link: <br/>
-              <a href="${proofUrl}" style="color: #11998e; word-break: break-all;">${proofUrl}</a>
+            <h2 class="main-heading">Delivery Unlocked</h2>
+            <p class="sub-heading">
+              Hi ${customerName}, your package from <strong>${merchantName}</strong> has been successfully verified and unlocked.
             </p>
-          </div>
 
-          <!-- Benefits -->
-          <div style="margin: 25px 0;">
-            <p style="font-size: 14px; color: #333; margin-bottom: 10px;">
-              <strong>Your Return Passport can be used for:</strong>
-            </p>
-            <ul style="padding-left: 20px; color: #555; line-height: 1.8;">
-              <li>✅ Quick & easy returns</li>
-              <li>🛡️ Insurance claims</li>
-              <li>📋 Warranty verification</li>
-              <li>🏷️ Resale authentication</li>
-            </ul>
+            ${productImageUrl ? `
+              <img src="${productImageUrl}" alt="Product" class="product-image" />
+            ` : ''}
+
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td align="center">
+                   <a href="${returnButtonUrl}" class="cta-button">
+                     Start Return
+                   </a>
+                </td>
+              </tr>
+            </table>
+
+            <div style="margin-top: 24px; text-align: center;">
+              <p style="font-size: 14px; color: #666; margin-bottom: 8px;">Or copy this link:</p>
+              <a href="${proofUrl}" style="color: #999; text-decoration: underline; font-size: 13px; word-break: break-all;">
+                ${proofUrl}
+              </a>
+            </div>
+
+            <!-- Photos Section (if needed) -->
+            ${photoUrls.length > 0 ? `
+              <div style="margin-top: 40px; text-align: left;">
+                <p style="font-size: 13px; font-weight: 600; color: #000; margin-bottom: 12px;">ENROLLMENT PHOTOS</p>
+                <div style="white-space: nowrap; overflow-x: auto; padding-bottom: 10px;">
+                  ${photoUrls.slice(0, 3).map(url => `
+                    <div style="display: inline-block; width: 80px; height: 80px; margin-right: 8px; border-radius: 4px; background-color: #eee; overflow: hidden; vertical-align: top;">
+                        <img src="${url}" style="width: 100%; height: 100%; object-fit: cover;" alt="Enrollment Photo" />
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+            
+            <!-- Details Grid -->
+            <div class="info-grid">
+               <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                 <tr>
+                    <td valign="top" width="50%" style="padding-bottom: 20px;">
+                        <div class="info-label">Merchant</div>
+                        <div class="info-value">${merchantName}</div>
+                    </td>
+                    <td valign="top" width="50%" style="padding-bottom: 20px;">
+                        <div class="info-label">Return Window</div>
+                        <div class="info-value">${returnWindowDays} Days</div>
+                    </td>
+                 </tr>
+                 <tr>
+                    <td valign="top" width="50%">
+                        <div class="info-label">Status</div>
+                        <div class="info-value">Verified & Unlocked</div>
+                    </td>
+                    <td valign="top" width="50%">
+                        <div class="info-label">Date</div>
+                        <div class="info-value">${new Date().toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                    </td>
+                 </tr>
+               </table>
+            </div>
+
           </div>
 
           <!-- Footer -->
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
-          <p style="font-size: 12px; color: #888; text-align: center;">
-            Sent by INK Verified Delivery for ${merchantName}.<br/>
-            This email confirms your delivery was unlocked successfully.
-          </p>
+          <div class="footer">
+            <p style="margin: 0 0 10px 0;">Secured by ink. Verified Delivery Protocol</p>
+            <p style="margin: 0;">&copy; ${new Date().getFullYear()} ink. All rights reserved.</p>
+          </div>
         </div>
       </body>
       </html>
@@ -169,7 +294,8 @@ export const EmailService = {
       await sendgrid.send({
         to,
         from: fromEmail,
-        subject: `🔓 Delivery Unlocked: Order ${orderName} - Your Return Passport`,
+        subject: `Your Order ${orderName} from ${merchantName} is Verified`,
+        text: `Your delivery for order ${orderName} from ${merchantName} has been verified! Use this link to manage returns: ${returnButtonUrl}`, // Fallback plain text
         html: htmlContent,
       });
 

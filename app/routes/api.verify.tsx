@@ -225,6 +225,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                                     id
                                     name
                                     customer { email firstName }
+                                    lineItems(first: 1) {
+                                        edges {
+                                            node {
+                                                image {
+                                                    url
+                                                }
+                                            }
+                                        }
+                                    }
                                 } 
                             }
                         }
@@ -244,6 +253,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     console.log("✅ Found order:", order.name);
                     console.log("📧 Customer email:", order.customer?.email);
                     
+                    const productImageUrl = order.lineItems?.edges?.[0]?.node?.image?.url;
+
                     if (order.customer?.email) {
                         const { EmailService } = await import("../services/email.server");
                         
@@ -256,6 +267,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                             photoUrls: photoUrls,
                             returnWindowDays: 30,
                             merchantName: session.shop.replace('.myshopify.com', ''),
+                            productImageUrl: productImageUrl,
                         });
                         
                         console.log(`✅ Return Passport email sent to ${order.customer.email}`);
