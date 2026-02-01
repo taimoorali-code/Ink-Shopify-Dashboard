@@ -302,6 +302,67 @@ body {
   display: none;
 }
 
+/* Controls Bar */
+.ink-controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.ink-sort-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ink-sort-label {
+  color: var(--ink-gray-medium);
+  font-size: 14px;
+}
+
+.ink-sort-select {
+  padding: 8px 12px;
+  border: 1px solid var(--ink-border);
+  border-radius: 20px;
+  font-size: 14px;
+  color: var(--ink-black);
+  background: white;
+  cursor: pointer;
+  outline: none;
+  min-width: 140px;
+}
+
+.ink-sort-select:focus {
+  border-color: var(--ink-black);
+}
+
+.ink-refresh-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--ink-gray-medium);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px;
+  transition: color 0.2s;
+}
+
+.ink-refresh-button:hover {
+  color: var(--ink-black);
+}
+
+.ink-refresh-icon {
+  font-size: 16px;
+  transition: transform 0.5s ease;
+}
+
+.ink-refresh-button.spinning .ink-refresh-icon {
+  transform: rotate(360deg);
+}
+
 /* Layout Utilities */
 .ink-container {
   max-width: 1200px;
@@ -425,6 +486,13 @@ body {
     border-radius: var(--radius-md);
     padding: var(--space-md);
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .ink-mobile-card.selected {
+    border: 1.5px solid var(--ink-black);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   }
   
   .ink-mobile-card-top {

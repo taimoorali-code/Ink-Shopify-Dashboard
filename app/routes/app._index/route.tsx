@@ -172,6 +172,10 @@ export default function DashboardHome() {
     const revalidator = useRevalidator();
     const [searchTerm, setSearchTerm] = useState("");
 
+    const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
     // Auto-refresh dashboard every 30 seconds
     useEffect(() => {
         const interval = setInterval(() => {
@@ -183,11 +187,24 @@ export default function DashboardHome() {
         return () => clearInterval(interval);
     }, [revalidator]);
 
-    // Filter orders based on search
-    const filteredOrders = orders.filter((order: Order) =>
-        order.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Handle Manual Refresh
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        revalidator.revalidate();
+        setTimeout(() => setIsRefreshing(false), 1000); // Visual feedback timeout
+    };
+
+    // Filter AND Sort orders
+    const filteredOrders = orders
+        .filter((order: Order) =>
+            order.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .sort((a, b) => {
+            const dateA = new Date(a.createdAt).getTime();
+            const dateB = new Date(b.createdAt).getTime();
+            return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+        });
 
     // Calculate stats
     const verifiedCount = orders.filter((o: Order) => o.verificationStatus.toLowerCase() === "verified").length;
@@ -233,7 +250,7 @@ export default function DashboardHome() {
                 </div>
 
                 {/* Search Bar */}
-                <div style={{ marginBottom: "32px" }}>
+                <div style={{ marginBottom: "24px" }}>
                     <input
                         type="text"
                         className="ink-input"
@@ -241,6 +258,28 @@ export default function DashboardHome() {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
+                </div>
+
+                {/* Controls Bar: Sort & Refresh */}
+                <div className="ink-controls-bar">
+                    <div className="ink-sort-control">
+                        <span className="ink-sort-label">Sort:</span>
+                        <select 
+                            className="ink-sort-select"
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value as "newest" | "oldest")}
+                        >
+                            <option value="newest">Newest first</option>
+                            <option value="oldest">Oldest first</option>
+                        </select>
+                    </div>
+                    
+                    <button 
+                        className={`ink-refresh-button ${isRefreshing ? 'spinning' : ''}`} 
+                        onClick={handleRefresh}
+                    >
+                        <span className="ink-refresh-icon">↻</span> Refresh
+                    </button>
                 </div>
 
                 {filteredOrders.length === 0 ? (
@@ -263,9 +302,22 @@ export default function DashboardHome() {
                                     statusLower === "enrolled" ? "ink-badge-enrolled" :
                                     "ink-badge-pending";
 
+                                const isSelected = selectedOrderId === order.id;
+
                                 return (
-                                    <Link to={`/app/orders/${order.id}`} key={order.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                        <div className="ink-mobile-card">
+                                    <Link 
+                                        to={`/app/orders/${order.id}`} 
+                                        key={order.id} 
+                                        style={{ textDecoration: 'none', color: 'inherit' }}
+                                        onClick={(e) => {
+                                            if (selectedOrderId !== order.id) {
+                                                e.preventDefault();
+                                                setSelectedOrderId(order.id);
+                                            }
+                                            // If selected, allow default behavior (navigation)
+                                        }}
+                                    >
+                                        <div className={`ink-mobile-card ${isSelected ? 'selected' : ''}`}>
                                             <div className="ink-mobile-card-top">
                                                 <div className="ink-mobile-customer">
                                                     {order.customerName}
